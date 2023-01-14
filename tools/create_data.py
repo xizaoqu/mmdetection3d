@@ -218,6 +218,7 @@ def waymo_data_prep(root_path,
         with_mask=False,
         num_worker=workers).create()
 
+
 def semantickitti_data_prep(out_dir):
     import os
     import pickle
@@ -266,26 +267,26 @@ def semantickitti_data_prep(out_dir):
                     'lidar_points': {
                         'lidar_path':
                         os.path.join('sequences',
-                                    str(i_folder).zfill(2), 'velodyne',
-                                    str(j).zfill(6) + '.bin')
+                                     str(i_folder).zfill(2), 'velodyne',
+                                     str(j).zfill(6) + '.bin')
                     },
                     'pts_semantic_mask_path':
-                        os.path.join('sequences',
-                                    str(i_folder).zfill(2), 'labels',
-                                    str(j).zfill(6) + '.label'),
-                    'sample_id': str(i_folder) + str(j)
+                    os.path.join('sequences',
+                                 str(i_folder).zfill(2), 'labels',
+                                 str(j).zfill(6) + '.label'),
+                    'sample_id':
+                    str(i_folder) + str(j)
                 })
         data_infos.update(dict(data_list=data_list))
         return data_infos
-    
+
     for sl in split_list:
         s = split[sl]
         data_infos = gen_annotations(s)
         ann_file = os.path.abspath(os.path.join(out_dir, sl + '_infos.pkl'))
         with open(ann_file, 'wb') as f:
             pickle.dump(data_infos, f)
-            f.close()    
-
+            f.close()
 
 
 parser = argparse.ArgumentParser(description='Data converter arg parser')

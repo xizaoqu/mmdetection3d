@@ -55,7 +55,8 @@ def _generate_semantickitti_dataset_config():
     ]
 
     data_prefix = dict(
-        pts='sequences/00/velodyne', pts_semantic_mask='sequences/00/labels') # TODO rm /00/labels
+        pts='sequences/00/velodyne',
+        pts_semantic_mask='sequences/00/labels')  # TODO rm /00/labels
 
     return (data_root, ann_file, classes, palette, data_prefix, pipeline,
             modality)
