@@ -1,6 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from mmengine.logging import MMLogger
 
@@ -18,12 +18,12 @@ class PanopticSegMetric(SegMetric):
             counted as ground truth in evaluation.
         offset (int): Offset for instance ids to concat with
             semantic labels.
-        stuff_class_indices (list): Indices of stuff classes.
-        things_class_indices (list): Indices of things classes.
+        stuff_class_indices (list[int]): Indices of stuff classes.
+        things_class_indices (list[int]): Indices of things classes.
         collect_device (str, optional): Device name used for collecting
             results from different ranks during distributed training.
             Must be 'cpu' or 'gpu'. Defaults to 'cpu'.
-        prefix (str): The prefix that will be added in the metric
+        prefix (str, optional): The prefix that will be added in the metric
             names to disambiguate homonymous metrics of different evaluators.
             If prefix is not provided in the argument, self.default_prefix
             will be used instead. Default: None.
@@ -36,10 +36,10 @@ class PanopticSegMetric(SegMetric):
     """
 
     def __init__(self,
-                 min_points,
-                 offset,
-                 stuff_class_indices,
-                 things_class_indices,
+                 min_points: int,
+                 offset: int,
+                 stuff_class_indices: List[int],
+                 things_class_indices: List[int],
                  collect_device: str = 'cpu',
                  prefix: Optional[str] = None,
                  pklfile_prefix: str = None,
