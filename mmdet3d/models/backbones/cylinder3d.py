@@ -6,9 +6,10 @@ kitti.org/dataset.html>`_ for details
 """
 
 import numpy as np
-import spconv
 import torch
 from mmcv.cnn import build_norm_layer
+from mmcv.ops import (SparseConv3d, SparseConvTensor, SparseInverseConv3d,
+                      SubMConv3d)
 from mmengine.model import BaseModule
 from torch import nn as nn
 
@@ -16,7 +17,7 @@ from mmdet3d.registry import MODELS
 
 
 def conv3x3(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=3,
@@ -27,7 +28,7 @@ def conv3x3(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv1x3(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=(1, 3, 3),
@@ -38,7 +39,7 @@ def conv1x3(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv1x1x3(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=(1, 1, 3),
@@ -49,7 +50,7 @@ def conv1x1x3(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv1x3x1(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=(1, 3, 1),
@@ -60,7 +61,7 @@ def conv1x3x1(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv3x1x1(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=(3, 1, 1),
@@ -71,7 +72,7 @@ def conv3x1x1(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv3x1(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=(3, 1, 3),
@@ -82,7 +83,7 @@ def conv3x1(in_planes, out_planes, stride=1, indice_key=None):
 
 
 def conv1x1(in_planes, out_planes, stride=1, indice_key=None):
-    return spconv.SubMConv3d(
+    return SubMConv3d(
         in_planes,
         out_planes,
         kernel_size=1,
@@ -197,7 +198,7 @@ class AsymmeDownBlock(nn.Module):
 
         if pooling:
             if height_pooling:
-                self.pool = spconv.SparseConv3d(
+                self.pool = SparseConv3d(
                     out_channels,
                     out_channels,
                     kernel_size=3,
@@ -206,7 +207,7 @@ class AsymmeDownBlock(nn.Module):
                     indice_key=indice_key,
                     bias=False)
             else:
-                self.pool = spconv.SparseConv3d(
+                self.pool = SparseConv3d(
                     out_channels,
                     out_channels,
                     kernel_size=3,
@@ -280,7 +281,7 @@ class AsymmeUpBlock(nn.Module):
         self.act3 = nn.LeakyReLU()
         self.bn3 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.up_subm = spconv.SparseInverseConv3d(
+        self.up_subm = SparseInverseConv3d(
             out_channels,
             out_channels,
             kernel_size=3,
@@ -444,8 +445,8 @@ class Asymm3DSpconv(BaseModule):
     def forward(self, voxel_features, coors, batch_size):
         """Forward pass."""
         coors = coors.int()
-        ret = spconv.SparseConvTensor(voxel_features, coors,
-                                      np.array(self.grid_size), batch_size)
+        ret = SparseConvTensor(voxel_features, coors, np.array(self.grid_size),
+                               batch_size)
         ret = self.down_context(ret)
         down1_pool, down1_skip = self.down_block0(ret)
         down2_pool, down2_skip = self.down_block1(down1_pool)
