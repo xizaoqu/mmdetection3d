@@ -369,12 +369,9 @@ class Asymm3DSpconv(BaseModule):
     Args:
         grid_size (int): Size of voxel grids.
         input_dims (int): Input channels of the block.
-        output_dims (int): Output channels of the block.
-        init_size (int, optional): Initial size of feature channels before
+        init_size (int): Initial size of feature channels before
             feeding into Encoder-Decoder structure. Default: 16.
-        with_more_conv (bool, optional): Whether use more convolutional layers
-                                to change channel number. Defaults to False.
-        norm_cfg (dict, optional): Dictionary to construct and config
+        norm_cfg (dict): Dictionary to construct and config
             norm layer. Default: dict(type='BN1d', eps=1e-3, momentum=0.01)).
     """
 
