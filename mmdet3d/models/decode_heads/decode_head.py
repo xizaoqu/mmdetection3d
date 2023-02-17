@@ -69,6 +69,7 @@ class Base3DDecodeHead(BaseModule, metaclass=ABCMeta):
                      use_sigmoid=False,
                      class_weight=None,
                      loss_weight=1.0),
+                 conv_seg_kernel_size=1,
                  ignore_index: int = 255,
                  init_cfg: OptMultiConfig = None) -> None:
         super(Base3DDecodeHead, self).__init__(init_cfg=init_cfg)
@@ -81,7 +82,10 @@ class Base3DDecodeHead(BaseModule, metaclass=ABCMeta):
         self.loss_decode = MODELS.build(loss_decode)
         self.ignore_index = ignore_index
 
-        self.conv_seg = nn.Conv1d(channels, num_classes, kernel_size=1)
+        self.conv_seg = self.build_conv_seg(
+            channels=channels,
+            num_classes=num_classes,
+            kernel_size=conv_seg_kernel_size)
         if dropout_ratio > 0:
             self.dropout = nn.Dropout(dropout_ratio)
         else:
@@ -96,6 +100,9 @@ class Base3DDecodeHead(BaseModule, metaclass=ABCMeta):
     def forward(self, feats_dict: dict) -> Tensor:
         """Placeholder of forward function."""
         pass
+
+    def build_conv_seg(self, channels, num_classes, kernel_size):
+        return nn.Conv1d(channels, num_classes, kernel_size=kernel_size)
 
     def cls_seg(self, feat: Tensor) -> Tensor:
         """Classify each points."""

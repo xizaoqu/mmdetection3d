@@ -1,36 +1,41 @@
-voxel_size = [480, 360, 32]
-in_channels = 9
-out_fea_dim = 256
-num_input_features = 16
-use_norm = True
-init_size = 32
-is_fix_backbone = False
-
-norm_cfg = dict(type='BN1d', eps=1e-5, momentum=0.01)
-
+grid_size = [480, 360, 32]
 model = dict(
     type='Cylinder3D',
     data_preprocessor=dict(
-        point_cloud_range=[0, '-np.pi', -4, 50, 'np.pi', 2],
-        voxel_size=voxel_size,
+        type='Det3DDataPreprocessor',
+        voxel=True,
+        voxel_type='cylindrical',
+        voxel_layer=dict(
+            grid_size=grid_size,
+            point_cloud_range=[0, -180, -4, 50, 180, 2],
+            max_num_points=-1,
+            max_voxels=-1,
+        ),
     ),
     pts_voxel_encoder=dict(
         type='SegVFE',
-        voxel_size=voxel_size,
-        in_channels=in_channels,
-        feat_channels=out_fea_dim,
-        fea_compre=num_input_features,
-        norm_cfg=norm_cfg),
+        feat_channels=[64, 128, 256, 256],
+        in_channels=9,
+        with_voxel_center=False,
+        feat_compression=16,
+        return_point_feats=False),
     backbone=dict(
         type='Asymm3DSpconv',
-        output_shape=voxel_size,
-        use_norm=use_norm,
-        num_input_features=num_input_features,
-        init_size=init_size,
-        norm_cfg=norm_cfg),
+        grid_size=grid_size,
+        input_dims=16,
+        init_size=32,
+        norm_cfg=dict(type='BN1d', eps=1e-5, momentum=0.01)),
     decode_head=dict(
         type='Cylinder3DHead',
-        channels=out_fea_dim,
+        channels=128,
         num_classes=20,
+        loss_ce=dict(
+            type='mmdet.CrossEntropyLoss',
+            use_sigmoid=False,
+            class_weight=None,
+            loss_weight=1.0),
+        loss_lovasz=dict(
+            type='mmseg.LovaszLoss', loss_weight=1.0, reduction='none'),
     ),
+    test_cfg=dict(mode='whole'),
 )

@@ -1,12 +1,14 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import spconv
-from decode_head import Base3DDecodeHead
+import torch
 from torch import Tensor
 
 from mmdet3d.registry import MODELS
 from mmdet3d.structures.det3d_data_sample import SampleList
+from .decode_head import Base3DDecodeHead
 
 
+@MODELS.register_module()
 class Cylinder3DHead(Base3DDecodeHead):
     """"""
 
@@ -24,6 +26,7 @@ class Cylinder3DHead(Base3DDecodeHead):
                      loss_weight=1.0),
                  loss_lovasz=dict(type='mmseg.LovaszLoss', loss_weight=1.0),
                  ignore_index=0,
+                 conv_seg_kernel_size=3,
                  init_cfg=None) -> None:
         super(Cylinder3DHead, self).__init__(
             channels=channels,
@@ -32,23 +35,25 @@ class Cylinder3DHead(Base3DDecodeHead):
             conv_cfg=conv_cfg,
             norm_cfg=norm_cfg,
             act_cfg=act_cfg,
+            conv_seg_kernel_size=conv_seg_kernel_size,
             init_cfg=init_cfg)
 
-        self.logits = spconv.SubMConv3d(
-            channels,
-            num_classes,
-            indice_key='logit',
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            bias=True)
         self.loss_lovasz = MODELS.build(loss_lovasz)
         self.loss_ce = MODELS.build(loss_ce)
         self.ignore_index = ignore_index
 
-    def forward(self, feats_dict: dict):
+    def build_conv_seg(self, channels, num_classes, kernel_size):
+        return spconv.SubMConv3d(
+            channels,
+            num_classes,
+            indice_key='logit',
+            kernel_size=kernel_size,
+            stride=1,
+            padding=1,
+            bias=True)
+
+    def forward(self, sparse_voxels: dict):
         """Forward function."""
-        sparse_voxels = feats_dict['sparse_voxels']
         sparse_logits = self.logits(sparse_voxels)
         return sparse_logits
 
@@ -63,10 +68,19 @@ class Cylinder3DHead(Base3DDecodeHead):
                 data samples. It usually includes information such
                 as `metainfo` and `gt_pts_seg`.
         """
-        seg_label = self._stack_batch_gt(batch_data_samples)
+
+        gt_semantic_segs = [
+            data_sample.gt_pts_seg.voxel_semantic_mask
+            for data_sample in batch_data_samples
+        ]
+        seg_label = torch.cat(gt_semantic_segs)
+        seg_logit_feat = seg_logit.features
         loss = dict()
+        loss['loss_ce'] = self.loss_ce(
+            seg_logit_feat, seg_label, ignore_index=self.ignore_index)
+        seg_logit_feat = seg_logit_feat.permute(1, 0)[None, :, :,
+                                                      None]  # pseudo BCHW
         loss['loss_lovasz'] = self.loss_lovasz(
-            seg_logit, seg_label, ignore_index=self.ignore_index)
-        loss['loss_ce'] = self.loss_ce(seg_logit, seg_label)
+            seg_logit_feat, seg_label, ignore_index=self.ignore_index)
 
         return loss

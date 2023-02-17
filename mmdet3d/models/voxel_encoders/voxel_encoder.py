@@ -557,7 +557,7 @@ class SegVFE(nn.Module):
             in_filters = feat_channels[i]
             out_filters = feat_channels[i + 1]
             norm_name, norm_layer = build_norm_layer(norm_cfg, out_filters)
-            if i == len(feat_channels) - 1:
+            if i == len(feat_channels) - 2:
                 vfe_layers.append(nn.Linear(in_filters, out_filters))
             else:
                 vfe_layers.append(
@@ -603,7 +603,7 @@ class SegVFE(nn.Module):
         features = torch.cat(features_ls[::-1], dim=-1)
         point_feats = []
         for i, vfe in enumerate(self.vfe_layers):
-            features = vfe(features)
+            features = vfe(features.float())
             point_feats.append(features)
             if i == self.num_vfe - 1:
                 voxel_feats, voxel_coors = self.vfe_scatter(features, coors)

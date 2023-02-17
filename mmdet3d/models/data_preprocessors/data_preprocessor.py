@@ -385,14 +385,17 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
             voxels, coors = [], []
             for i, (res, data_sample) in enumerate(zip(points, data_samples)):
                 rho = torch.sqrt(res[:, 0]**2 + res[:, 1]**2)
-                phi = torch.atan2(res[:, 1], res[:, 0]) / torch.pi * 180
+                phi = torch.atan2(res[:, 1], res[:, 0]) / math.pi * 180
                 polar_res = torch.stack((rho, phi, res[:, 2]), dim=-1)
                 # TODO: implement cylindrical voxelization in voxel_layer
                 min_bound = polar_res.new_tensor(
                     self.voxel_layer.point_cloud_range[:3])
-                max_bound = polar_res.new_tensor(
-                    self.voxel_layer.point_cloud_range[3:])
-                polar_res = torch.clamp(polar_res, min_bound, max_bound)
+                # max_bound = polar_res.new_tensor(
+                #     self.voxel_layer.point_cloud_range[3:])
+                polar_res = torch.from_numpy(
+                    np.clip(polar_res.cpu().numpy(),
+                            self.voxel_layer.point_cloud_range[:3],
+                            self.voxel_layer.point_cloud_range[3:])).cuda()
                 res_coors = torch.floor(
                     (polar_res - min_bound) /
                     polar_res.new_tensor(self.voxel_layer.voxel_size)).int()

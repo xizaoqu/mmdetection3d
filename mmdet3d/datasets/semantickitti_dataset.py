@@ -21,7 +21,7 @@ class SemanticKITTIDataset(Seg3DDataset):
         metainfo (dict, optional): Meta information for dataset, such as class
             information. Defaults to None.
         data_prefix (dict): Prefix for training data. Defaults to
-            dict(pts='points',
+            dict(pts='',
                  img='',
                  pts_instance_mask='',
                  pts_semantic_mask='').
@@ -59,7 +59,7 @@ class SemanticKITTIDataset(Seg3DDataset):
                  ann_file: str = '',
                  metainfo: Optional[dict] = None,
                  data_prefix: dict = dict(
-                     pts='points',
+                     pts='',
                      img='',
                      pts_instance_mask='',
                      pts_semantic_mask=''),

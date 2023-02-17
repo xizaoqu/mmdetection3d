@@ -381,15 +381,11 @@ class Asymm3DSpconv(BaseModule):
     def __init__(self,
                  grid_size,
                  input_dims,
-                 out_dims,
                  init_size=16,
-                 with_more_conv=False,
                  norm_cfg=dict(type='BN1d', eps=1e-3, momentum=0.01)):
         super().__init__()
 
-        sparse_shape = np.array(grid_size)
-        self.sparse_shape = sparse_shape
-        self.with_more_conv = with_more_conv
+        self.grid_size = grid_size
 
         self.down_context = AsymmResBlock(
             input_dims, init_size, indice_key='pre', norm_cfg=norm_cfg)
@@ -448,16 +444,11 @@ class Asymm3DSpconv(BaseModule):
         self.ddcm = DDCMBlock(
             2 * init_size, 2 * init_size, indice_key='ddcm', norm_cfg=norm_cfg)
 
-        if self.with_more_conv:
-            self.more_conv = conv3x3(4 * init_size, out_dims, indice_key='mc')
-            self.more_bn = build_norm_layer(norm_cfg, out_dims)[1]
-            self.more_act = nn.LeakyReLU()
-
     def forward(self, voxel_features, coors, batch_size):
         """Forward pass."""
         coors = coors.int()
-        ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
-                                      batch_size)
+        ret = spconv.SparseConvTensor(voxel_features, coors,
+                                      np.array(self.grid_size), batch_size)
         ret = self.down_context(ret)
         down1_pool, down1_skip = self.down_block0(ret)
         down2_pool, down2_skip = self.down_block1(down1_pool)
@@ -472,10 +463,5 @@ class Asymm3DSpconv(BaseModule):
         up0 = self.ddcm(up1)
 
         up0.features = torch.cat((up0.features, up1.features), 1)
-
-        if self.with_more_conv:
-            up0 = self.more_conv(up0)
-            up0.features = self.more_bn(up0.features)
-            up0.features = self.more_act(up0.features)
 
         return up0
