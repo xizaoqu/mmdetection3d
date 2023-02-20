@@ -1,8 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 r"""Modified from Cylinder3D.
 
-Please refer to `Cylinder3D github page <http://www.semantic-
-kitti.org/dataset.html>`_ for details
+Please refer to `Cylinder3D github page
+<https://github.com/xinge008/Cylinder3D>`_ for details
 """
 
 import numpy as np
