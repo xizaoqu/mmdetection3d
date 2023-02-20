@@ -14,6 +14,7 @@ from mmengine.model import BaseModule
 from torch import nn as nn
 
 from mmdet3d.registry import MODELS
+from mmdet3d.utils import OptConfigType
 
 
 def conv3x3x3(in_channels: int,
@@ -197,15 +198,15 @@ class AsymmResBlock(BaseModule):
     Args:
         in_channels (int): Input channels of the block.
         out_channels (int): Output channels of the block.
-        norm_cfg (dict or ConfigDict): Config to construct and config
-            norm layer.
+        norm_cfg (:obj:`ConfigDict` or dict): Config dict for
+            normalization layer.
         indice_key (str, optional): Name of indice tables. Default: None.
     """
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: dict,
+                 norm_cfg: OptConfigType,
                  indice_key: str = None):
         super().__init__()
 
@@ -259,8 +260,8 @@ class AsymmeDownBlock(BaseModule):
     Args:
        in_channels (int): Input channels of the block.
        out_channels (int): Output channels of the block.
-       norm_cfg (dict or Config): Config to construct and config
-           norm layer.
+       norm_cfg (:obj:`ConfigDict` or dict): Config dict for
+            normalization layer.
        pooling (bool): Whether pooling features at the end of
            block. Defaults: True.
        height_pooling (bool): Whether pooling features at
@@ -271,7 +272,7 @@ class AsymmeDownBlock(BaseModule):
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: dict,
+                 norm_cfg: OptConfigType,
                  pooling: bool = True,
                  height_pooling: bool = False,
                  indice_key: str = None):
@@ -420,7 +421,7 @@ class AsymmeUpBlock(BaseModule):
         return up
 
 
-class DDCMBlock(nn.Module):
+class DDCMBlock(BaseModule):
     """Dimension-Decomposition based Context Modeling.
 
     Args:
@@ -482,15 +483,16 @@ class Asymm3DSpconv(BaseModule):
         input_dims (int): Input channels of the block.
         init_size (int): Initial size of feature channels before
             feeding into Encoder-Decoder structure. Default: 16.
-        norm_cfg (dict or Config): Config to construct and config
-            norm layer. Default: dict(type='BN1d', eps=1e-3, momentum=0.01)).
+        norm_cfg (:obj:`ConfigDict` or dict): Config dict for normalization
+            layer. Default: dict(type='BN1d', eps=1e-3, momentum=0.01)).
     """
 
     def __init__(self,
                  grid_size: int,
                  input_dims: int,
                  init_size: int = 16,
-                 norm_cfg: dict = dict(type='BN1d', eps=1e-3, momentum=0.01)):
+                 norm_cfg: OptConfigType = dict(
+                     type='BN1d', eps=1e-3, momentum=0.01)):
         super().__init__()
 
         self.grid_size = grid_size
