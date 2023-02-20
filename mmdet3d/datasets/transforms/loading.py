@@ -801,7 +801,8 @@ class LoadAnnotations3D(LoadAnnotations):
             Defaults to False.
         poly2mask (bool): Whether to convert polygon annotations to bitmasks.
             Defaults to True.
-        seg_3d_dtype (dtype): Dtype of 3D semantic masks. Defaults to int64.
+        seg_3d_dtype (str): String of dtype of 3D semantic masks.
+            Defaults to 'np.int64'.
         seg_offset (int): The offset to split semantic and instance labels from
             panoptic labels. Defaults to None.
         dataset_type (str): Type of dataset used for splitting semantic and

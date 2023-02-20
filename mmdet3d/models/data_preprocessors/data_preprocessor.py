@@ -13,7 +13,8 @@ from torch.nn import functional as F
 from mmdet3d.registry import MODELS
 from mmdet3d.structures.det3d_data_sample import SampleList
 from mmdet3d.utils import OptConfigType
-from .utils import Voxelization, dynamic_scatter, multiview_img_stack_batch
+from .utils import multiview_img_stack_batch
+from .voxelize import VoxelizationByGridShape, dynamic_scatter_3d
 
 
 @MODELS.register_module()
@@ -103,7 +104,7 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         self.voxel = voxel
         self.voxel_type = voxel_type
         if voxel:
-            self.voxel_layer = Voxelization(**voxel_layer)
+            self.voxel_layer = VoxelizationByGridShape(**voxel_layer)
 
     def forward(self,
                 data: Union[dict, List[dict]],
@@ -336,7 +337,7 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         Args:
             points (List[Tensor]): Point cloud in one data batch.
             data_samples: (list[:obj:`Det3DDataSample`]): The annotation data
-                of every samples. Add voxel-wise annotation forsegmentation.
+                of every samples. Add voxel-wise annotation for segmentation.
 
         Returns:
             Dict[str, Tensor]: Voxelization information.
@@ -385,17 +386,15 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
             voxels, coors = [], []
             for i, (res, data_sample) in enumerate(zip(points, data_samples)):
                 rho = torch.sqrt(res[:, 0]**2 + res[:, 1]**2)
-                phi = torch.atan2(res[:, 1], res[:, 0]) / math.pi * 180
+                phi = torch.atan2(res[:, 1], res[:, 0])
                 polar_res = torch.stack((rho, phi, res[:, 2]), dim=-1)
-                # TODO: implement cylindrical voxelization in voxel_layer
+                # Currently we only support PyTorch >= 1.9.0, and will
+                # implement it in voxel_layer soon for better compatibility
                 min_bound = polar_res.new_tensor(
                     self.voxel_layer.point_cloud_range[:3])
-                # max_bound = polar_res.new_tensor(
-                #     self.voxel_layer.point_cloud_range[3:])
-                polar_res = torch.from_numpy(
-                    np.clip(polar_res.cpu().numpy(),
-                            self.voxel_layer.point_cloud_range[:3],
-                            self.voxel_layer.point_cloud_range[3:])).cuda()
+                max_bound = polar_res.new_tensor(
+                    self.voxel_layer.point_cloud_range[3:])
+                polar_res = torch.clamp(polar_res, min_bound, max_bound)
                 res_coors = torch.floor(
                     (polar_res - min_bound) /
                     polar_res.new_tensor(self.voxel_layer.voxel_size)).int()
@@ -425,7 +424,7 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
                 every samples. Add voxel-wise annotation forsegmentation.
         """
         pts_semantic_mask = data_sample.gt_pts_seg.pts_semantic_mask
-        voxel_semantic_mask, _, point2voxel_map = dynamic_scatter(
+        voxel_semantic_mask, _, point2voxel_map = dynamic_scatter_3d(
             F.one_hot(pts_semantic_mask.long()).float(), res_coors, 'mean',
             True)
         voxel_semantic_mask = torch.argmax(voxel_semantic_mask, dim=-1)
