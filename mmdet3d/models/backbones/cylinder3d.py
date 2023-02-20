@@ -16,10 +16,21 @@ from torch import nn as nn
 from mmdet3d.registry import MODELS
 
 
-def conv3x3(in_channels: int,
-            out_channels: int,
-            stride: int = 1,
-            indice_key: str = None) -> SparseConvTensor:
+def conv3x3x3(in_channels: int,
+              out_channels: int,
+              stride: int = 1,
+              indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 3*3*3.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 3*3*3.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -30,10 +41,21 @@ def conv3x3(in_channels: int,
         indice_key=indice_key)
 
 
-def conv1x3(in_channels: int,
-            out_channels: int,
-            stride: int = 1,
-            indice_key: str = None) -> SparseConvTensor:
+def conv1x3x3(in_channels: int,
+              out_channels: int,
+              stride: int = 1,
+              indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 1*3*3.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 1*3*3.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -48,6 +70,17 @@ def conv1x1x3(in_channels: int,
               out_channels: int,
               stride: int = 1,
               indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 1*1*3.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 1*1*3.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -62,6 +95,17 @@ def conv1x3x1(in_channels: int,
               out_channels: int,
               stride: int = 1,
               indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 1*3*1.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 1*3*1.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -76,6 +120,17 @@ def conv3x1x1(in_channels: int,
               out_channels: int,
               stride: int = 1,
               indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 3*1*1.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 3*1*1.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -86,10 +141,21 @@ def conv3x1x1(in_channels: int,
         indice_key=indice_key)
 
 
-def conv3x1(in_channels: int,
-            out_channels: int,
-            stride: int = 1,
-            indice_key: str = None) -> SparseConvTensor:
+def conv3x1x3(in_channels: int,
+              out_channels: int,
+              stride: int = 1,
+              indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 3*1*3.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 3*1*3.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -100,10 +166,21 @@ def conv3x1(in_channels: int,
         indice_key=indice_key)
 
 
-def conv1x1(in_channels: int,
-            out_channels: int,
-            stride: int = 1,
-            indice_key: str = None) -> SparseConvTensor:
+def conv1x1x1(in_channels: int,
+              out_channels: int,
+              stride: int = 1,
+              indice_key: str = None) -> SparseConvTensor:
+    """SubMConv3d with kernel size of 1*1*1.
+
+    Args:
+        in_channels (int): Input channels of the block.
+        out_channels (int): Output channels of the block.
+        stride (int): Conv stride. Defaults to 1.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
+
+    Returns:
+        SparseConvTensor: SubMConv3d with kernel size of 1*1*1.
+    """
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -132,22 +209,22 @@ class AsymmResBlock(BaseModule):
                  indice_key: str = None):
         super().__init__()
 
-        self.conv0_0 = conv1x3(
+        self.conv0_0 = conv1x3x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn0_0 = build_norm_layer(norm_cfg, out_channels)[1]
         self.act0_0 = nn.LeakyReLU()
 
-        self.conv0_1 = conv3x1(
+        self.conv0_1 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn0_1 = build_norm_layer(norm_cfg, out_channels)[1]
         self.act0_1 = nn.LeakyReLU()
 
-        self.conv1_0 = conv3x1(
+        self.conv1_0 = conv3x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.act1_0 = nn.LeakyReLU()
         self.bn1_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv1_1 = conv1x3(
+        self.conv1_1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
         self.act1_1 = nn.LeakyReLU()
         self.bn1_1 = build_norm_layer(norm_cfg, out_channels)[1]
@@ -201,22 +278,22 @@ class AsymmeDownBlock(BaseModule):
         super().__init__()
         self.pooling = pooling
 
-        self.conv0_0 = conv3x1(
+        self.conv0_0 = conv3x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.act0_0 = nn.LeakyReLU()
         self.bn0_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv0_1 = conv1x3(
+        self.conv0_1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
         self.act0_1 = nn.LeakyReLU()
         self.bn0_1 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv1_0 = conv1x3(
+        self.conv1_0 = conv1x3x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.act1_0 = nn.LeakyReLU()
         self.bn1_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv1_1 = conv3x1(
+        self.conv1_1 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
         self.act1_1 = nn.LeakyReLU()
         self.bn1_1 = build_norm_layer(norm_cfg, out_channels)[1]
@@ -289,20 +366,23 @@ class AsymmeUpBlock(BaseModule):
                  up_key: str = None):
         super().__init__()
 
-        self.trans_conv = conv3x3(
+        self.trans_conv = conv3x3x3(
             in_channels, out_channels, indice_key=indice_key + 'new_up')
         self.trans_act = nn.LeakyReLU()
         self.trans_bn = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv1 = conv1x3(out_channels, out_channels, indice_key=indice_key)
+        self.conv1 = conv1x3x3(
+            out_channels, out_channels, indice_key=indice_key)
         self.act1 = nn.LeakyReLU()
         self.bn1 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv2 = conv3x1(out_channels, out_channels, indice_key=indice_key)
+        self.conv2 = conv3x1x3(
+            out_channels, out_channels, indice_key=indice_key)
         self.act2 = nn.LeakyReLU()
         self.bn2 = build_norm_layer(norm_cfg, out_channels)[1]
 
-        self.conv3 = conv3x3(out_channels, out_channels, indice_key=indice_key)
+        self.conv3 = conv3x3x3(
+            out_channels, out_channels, indice_key=indice_key)
         self.act3 = nn.LeakyReLU()
         self.bn3 = build_norm_layer(norm_cfg, out_channels)[1]
 
