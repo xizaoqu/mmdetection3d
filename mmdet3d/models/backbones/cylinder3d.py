@@ -19,7 +19,7 @@ from mmdet3d.registry import MODELS
 def conv3x3(in_channels: int,
             out_channels: int,
             stride: int = 1,
-            indice_key: int = None) -> SparseConvTensor:
+            indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -33,7 +33,7 @@ def conv3x3(in_channels: int,
 def conv1x3(in_channels: int,
             out_channels: int,
             stride: int = 1,
-            indice_key: int = None) -> SparseConvTensor:
+            indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -47,7 +47,7 @@ def conv1x3(in_channels: int,
 def conv1x1x3(in_channels: int,
               out_channels: int,
               stride: int = 1,
-              indice_key: int = None) -> SparseConvTensor:
+              indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -61,7 +61,7 @@ def conv1x1x3(in_channels: int,
 def conv1x3x1(in_channels: int,
               out_channels: int,
               stride: int = 1,
-              indice_key: int = None) -> SparseConvTensor:
+              indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -75,7 +75,7 @@ def conv1x3x1(in_channels: int,
 def conv3x1x1(in_channels: int,
               out_channels: int,
               stride: int = 1,
-              indice_key: int = None) -> SparseConvTensor:
+              indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -89,7 +89,7 @@ def conv3x1x1(in_channels: int,
 def conv3x1(in_channels: int,
             out_channels: int,
             stride: int = 1,
-            indice_key: int = None) -> SparseConvTensor:
+            indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
@@ -103,7 +103,7 @@ def conv3x1(in_channels: int,
 def conv1x1(in_channels: int,
             out_channels: int,
             stride: int = 1,
-            indice_key: int = None) -> SparseConvTensor:
+            indice_key: str = None) -> SparseConvTensor:
     return SubMConv3d(
         in_channels,
         out_channels,
