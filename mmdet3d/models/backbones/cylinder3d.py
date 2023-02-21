@@ -5,6 +5,8 @@ Please refer to `Cylinder3D github page
 <https://github.com/xinge008/Cylinder3D>`_ for details
 """
 
+from typing import Union
+
 import numpy as np
 import torch
 from mmcv.cnn import build_norm_layer
@@ -198,15 +200,15 @@ class AsymmResBlock(BaseModule):
     Args:
         in_channels (int): Input channels of the block.
         out_channels (int): Output channels of the block.
-        norm_cfg (:obj:`ConfigDict` or dict): Config dict for
+        norm_cfg (Union[:obj:`ConfigDict` or dict]): Config dict for
             normalization layer.
-        indice_key (str, optional): Name of indice tables. Default: None.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
     """
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: OptConfigType,
+                 norm_cfg: Union[OptConfigType, dict],
                  indice_key: str = None):
         super().__init__()
 
@@ -260,19 +262,19 @@ class AsymmeDownBlock(BaseModule):
     Args:
        in_channels (int): Input channels of the block.
        out_channels (int): Output channels of the block.
-       norm_cfg (:obj:`ConfigDict` or dict): Config dict for
+       norm_cfg (Union[:obj:`ConfigDict`, dict]): Config dict for
             normalization layer.
        pooling (bool): Whether pooling features at the end of
            block. Defaults: True.
        height_pooling (bool): Whether pooling features at
            the height dimension. Defaults: False.
-       indice_key (str, optional): Name of indice tables. Default: None.
+       indice_key (str, optional): Name of indice tables. Defaults to None.
     """
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: OptConfigType,
+                 norm_cfg: Union[OptConfigType, dict],
                  pooling: bool = True,
                  height_pooling: bool = False,
                  indice_key: str = None):
@@ -352,17 +354,17 @@ class AsymmeUpBlock(BaseModule):
     Args:
        in_channels (int): Input channels of the block.
        out_channels (int): Output channels of the block.
-       norm_cfg (dict or Config): Config to construct and config
-           norm layer.
-       indice_key (str, optional): Name of indice tables. Default: None.
+       norm_cfg (Union[:obj:`ConfigDict`, dict]): Config dict for
+            normalization layer.
+       indice_key (str, optional): Name of indice tables. Defaults to None.
        up_key (str, optional): Name of indice tables used in
-           SparseInverseConv3d. Default: None.
+           SparseInverseConv3d. Defaults to None.
     """
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: dict,
+                 norm_cfg: Union[OptConfigType, dict],
                  indice_key: str = None,
                  up_key: str = None):
         super().__init__()
@@ -427,14 +429,15 @@ class DDCMBlock(BaseModule):
     Args:
         in_channels (int): Input channels of the block.
         out_channels (int): Output channels of the block.
-        norm_cfg (dict pr Config): Config to construct and config norm layer.
-        indice_key (str, optional): Name of indice tables. Default: None.
+        norm_cfg (Union[:obj:`ConfigDict`, dict]): Config dict for
+            normalization layer.
+        indice_key (str, optional): Name of indice tables. Defaults to None.
     """
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 norm_cfg: dict,
+                 norm_cfg: Union[OptConfigType, dict],
                  indice_key: str = None):
         super().__init__()
 
@@ -482,16 +485,16 @@ class Asymm3DSpconv(BaseModule):
         grid_size (int): Size of voxel grids.
         input_dims (int): Input channels of the block.
         init_size (int): Initial size of feature channels before
-            feeding into Encoder-Decoder structure. Default: 16.
+            feeding into Encoder-Decoder structure. Defaults to 16.
         norm_cfg (:obj:`ConfigDict` or dict): Config dict for normalization
-            layer. Default: dict(type='BN1d', eps=1e-3, momentum=0.01)).
+            layer. Defaults to dict(type='BN1d', eps=1e-3, momentum=0.01)).
     """
 
     def __init__(self,
                  grid_size: int,
                  input_dims: int,
                  init_size: int = 16,
-                 norm_cfg: OptConfigType = dict(
+                 norm_cfg: Union[OptConfigType, dict] = dict(
                      type='BN1d', eps=1e-3, momentum=0.01)):
         super().__init__()
 
