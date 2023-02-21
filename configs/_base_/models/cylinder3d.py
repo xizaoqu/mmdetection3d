@@ -1,4 +1,4 @@
-grid_size = [480, 360, 32]
+grid_shape = [480, 360, 32]
 model = dict(
     type='Cylinder3D',
     data_preprocessor=dict(
@@ -6,7 +6,7 @@ model = dict(
         voxel=True,
         voxel_type='cylindrical',
         voxel_layer=dict(
-            grid_size=grid_size,
+            grid_shape=grid_shape,
             point_cloud_range=[0, -180, -4, 50, 180, 2],
             max_num_points=-1,
             max_voxels=-1,
@@ -15,13 +15,13 @@ model = dict(
     pts_voxel_encoder=dict(
         type='SegVFE',
         feat_channels=[64, 128, 256, 256],
-        in_channels=9,
-        with_voxel_center=False,
+        in_channels=6,
+        with_voxel_center=True,
         feat_compression=16,
         return_point_feats=False),
     backbone=dict(
         type='Asymm3DSpconv',
-        grid_size=grid_size,
+        grid_size=grid_shape,  # TODO change the note
         input_dims=16,
         init_size=32,
         norm_cfg=dict(type='BN1d', eps=1e-5, momentum=0.01)),
@@ -34,8 +34,7 @@ model = dict(
             use_sigmoid=False,
             class_weight=None,
             loss_weight=1.0),
-        loss_lovasz=dict(
-            type='mmseg.LovaszLoss', loss_weight=1.0, reduction='none'),
+        loss_lovasz=dict(type='LovaszLoss', loss_weight=1.0, reduction='none'),
     ),
     test_cfg=dict(mode='whole'),
 )

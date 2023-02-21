@@ -41,6 +41,7 @@ class Cylinder3D(EncoderDecoder3D):
         """Extract features from points."""
         encoded_feats = self.pts_voxel_encoder(
             batch_inputs['voxels']['voxels'], batch_inputs['voxels']['coors'])
+        batch_inputs['voxels']['voxel_coors'] = encoded_feats[1]
         x = self.backbone(encoded_feats[0], encoded_feats[1],
                           len(batch_inputs['points']))
         if self.with_neck:
@@ -108,12 +109,13 @@ class Cylinder3D(EncoderDecoder3D):
             batch_input_metas.append(data_sample.metainfo)
 
         seg_logits = self.encode_decode(batch_inputs_dict, batch_input_metas)
-        seg_map = seg_logits.argmax(1).dense
-        seg_map = seg_map.cpu().detach().numpy()
-
-        for i in range(seg_map.shape[0]):
-            seg_pred_list.append(seg_map[i, batch_data_samples[i][:, 0],
-                                         batch_data_samples[i][:, 1],
-                                         batch_data_samples[i][:, 2]])
+        seg_predicts = seg_logits.features.argmax(1)
+        coors = batch_inputs_dict['voxels']['voxel_coors']
+        for batch_idx in range(len(batch_data_samples)):
+            single_seg_predicts = seg_predicts[coors[:, 0] == batch_idx]
+            point2voxel_map = batch_data_samples[
+                batch_idx].gt_pts_seg.point2voxel_map.long()
+            point_seg_predicts = single_seg_predicts[point2voxel_map]
+            seg_pred_list.append(point_seg_predicts)
 
         return self.postprocess_result(seg_pred_list, batch_data_samples)
