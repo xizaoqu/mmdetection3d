@@ -86,4 +86,4 @@ class SemanticKITTIDataset(Seg3DDataset):
         seg_label_mapping = np.zeros(metainfo['max_label'] + 1)
         for idx in metainfo['seg_label_mapping']:
             seg_label_mapping[idx] = metainfo['seg_label_mapping'][idx]
-        return seg_label_mapping
+        return seg_label_mapping.astype('int64')

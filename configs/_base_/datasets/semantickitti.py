@@ -150,7 +150,8 @@ train_dataloader = dict(
             ann_file='semantickitti_infos_train.pkl',
             pipeline=train_pipeline,
             metainfo=metainfo,
-            modality=input_modality)),
+            modality=input_modality,
+            ignore_index=0)),
 )
 
 test_dataloader = dict(
@@ -168,7 +169,7 @@ test_dataloader = dict(
             metainfo=metainfo,
             modality=input_modality,
             test_mode=True,
-        )),
+            ignore_index=0)),
 )
 
 val_dataloader = test_dataloader

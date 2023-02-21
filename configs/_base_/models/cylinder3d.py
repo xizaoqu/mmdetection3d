@@ -7,7 +7,7 @@ model = dict(
         voxel_type='cylindrical',
         voxel_layer=dict(
             grid_shape=grid_shape,
-            point_cloud_range=[0, -180, -4, 50, 180, 2],
+            point_cloud_range=[0, -3.14159265359, -4, 50, 3.14159265359, 2],
             max_num_points=-1,
             max_voxels=-1,
         ),
@@ -24,7 +24,7 @@ model = dict(
         grid_size=grid_shape,  # TODO change the note
         input_dims=16,
         init_size=32,
-        norm_cfg=dict(type='BN1d', eps=1e-5, momentum=0.01)),
+        norm_cfg=dict(type='BN1d', eps=1e-5, momentum=0.1)),
     decode_head=dict(
         type='Cylinder3DHead',
         channels=128,
