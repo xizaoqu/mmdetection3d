@@ -10,8 +10,8 @@ from typing import Optional
 import numpy as np
 import torch
 from mmcv.cnn import build_norm_layer
-from mmcv.ops import (SparseConv3d, SparseInverseConv3d, SparseModule,
-                      SubMConv3d)
+from mmcv.ops import (SparseConv3d, SparseConvTensor, SparseInverseConv3d,
+                      SparseModule, SubMConv3d)
 from mmengine.model import BaseModule
 from torch import nn as nn
 
@@ -560,8 +560,8 @@ class Asymm3DSpconv(BaseModule):
                 batch_size: int) -> SparseModule:
         """Forward pass."""
         coors = coors.int()
-        ret = SparseModule(voxel_features, coors, np.array(self.grid_size),
-                           batch_size)
+        ret = SparseConvTensor(voxel_features, coors, np.array(self.grid_size),
+                               batch_size)
         ret = self.down_context(ret)
         down1_pool, down1_skip = self.down_block0(ret)
         down2_pool, down2_skip = self.down_block1(down1_pool)
