@@ -114,8 +114,6 @@ class Cylinder3DHead(Base3DDecodeHead):
         loss = dict()
         loss['loss_ce'] = self.loss_ce(
             seg_logit_feat, seg_label, ignore_index=self.ignore_index)
-        seg_logit_feat = seg_logit_feat.permute(1, 0)[None, :, :,
-                                                      None]  # pseudo BCHW
         loss['loss_lovasz'] = self.loss_lovasz(
             seg_logit_feat, seg_label, ignore_index=self.ignore_index)
 

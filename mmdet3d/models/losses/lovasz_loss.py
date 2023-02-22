@@ -80,13 +80,15 @@ def flatten_probs(
     Return:
         tuple(torch.Tensor, torch.Tensor): Modified predictions and labels.
     """
-    if probs.dim() == 3:
-        # assumes output of a sigmoid layer
-        B, H, W = probs.size()
-        probs = probs.view(B, 1, H, W)
-    B, C, H, W = probs.size()
-    probs = probs.permute(0, 2, 3, 1).contiguous().view(-1, C)  # B*H*W, C=P,C
-    labels = labels.view(-1)
+    if probs.dim() != 2:
+        if probs.dim() == 3:
+            # assumes output of a sigmoid layer
+            B, H, W = probs.size()
+            probs = probs.view(B, 1, H, W)
+        B, C, H, W = probs.size()
+        probs = probs.permute(0, 2, 3, 1).contiguous().view(-1,
+                                                            C)  # B*H*W, C=P,C
+        labels = labels.view(-1)
     if ignore_index is None:
         return probs, labels
     valid = (labels != ignore_index)
@@ -347,6 +349,7 @@ class LovaszLoss(nn.Module):
             reduction=reduction,
             avg_factor=avg_factor,
             **kwargs)
+
         return loss_cls
 
     @property
