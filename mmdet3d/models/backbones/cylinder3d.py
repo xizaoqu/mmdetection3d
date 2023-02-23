@@ -9,11 +9,10 @@ from typing import Optional
 
 import numpy as np
 import torch
-from mmcv.cnn import build_norm_layer
+from mmcv.cnn import build_activation_layer, build_norm_layer
 from mmcv.ops import (SparseConv3d, SparseConvTensor, SparseInverseConv3d,
                       SparseModule, SubMConv3d)
 from mmengine.model import BaseModule
-from torch import nn as nn
 
 from mmdet3d.registry import MODELS
 from mmdet3d.utils import ConfigType
@@ -202,6 +201,8 @@ class AsymmResBlock(BaseModule):
         out_channels (int): Output channels of the block.
         norm_cfg (:obj:`ConfigDict` or dict): Config dict for
             normalization layer.
+       act_cfg (:obj:`ConfigDict` or dict): Config dict of activation layers.
+            Defaults to dict(type='LeakyReLU').
         indice_key (str, optional): Name of indice tables. Defaults to None.
     """
 
@@ -209,30 +210,31 @@ class AsymmResBlock(BaseModule):
                  in_channels: int,
                  out_channels: int,
                  norm_cfg: ConfigType,
+                 act_cfg: ConfigType = dict(type='LeakyReLU'),
                  indice_key: Optional[str] = None):
         super().__init__()
 
         self.conv0_0 = conv1x3x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn0_0 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.act0_0 = nn.LeakyReLU()
+        self.build_activation_layer(act_cfg)
 
         self.conv0_1 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn0_1 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.act0_1 = nn.LeakyReLU()
+        self.build_activation_layer(act_cfg)
 
         self.conv1_0 = conv3x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act1_0 = nn.LeakyReLU()
+        self.build_activation_layer(act_cfg)
         self.bn1_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv1_1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act1_1 = nn.LeakyReLU()
+        self.build_activation_layer(act_cfg)
         self.bn1_1 = build_norm_layer(norm_cfg, out_channels)[1]
 
-    def forward(self, x: SparseModule) -> SparseModule:
+    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
         """Forward pass."""
         shortcut = self.conv0_0(x)
 
@@ -264,6 +266,8 @@ class AsymmeDownBlock(BaseModule):
        out_channels (int): Output channels of the block.
        norm_cfg (:obj:`ConfigDict` or dict): Config dict for
             normalization layer.
+       act_cfg (:obj:`ConfigDict` or dict): Config dict of activation layers.
+            Defaults to dict(type='LeakyReLU').
        pooling (bool): Whether pooling features at the end of
            block. Defaults: True.
        height_pooling (bool): Whether pooling features at
@@ -275,6 +279,7 @@ class AsymmeDownBlock(BaseModule):
                  in_channels: int,
                  out_channels: int,
                  norm_cfg: ConfigType,
+                 act_cfg: ConfigType = dict(type='LeakyReLU'),
                  pooling: bool = True,
                  height_pooling: bool = False,
                  indice_key: Optional[str] = None):
@@ -283,22 +288,22 @@ class AsymmeDownBlock(BaseModule):
 
         self.conv0_0 = conv3x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act0_0 = nn.LeakyReLU()
+        self.act0_0 = build_activation_layer(act_cfg)
         self.bn0_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv0_1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act0_1 = nn.LeakyReLU()
+        self.act0_1 = build_activation_layer(act_cfg)
         self.bn0_1 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv1_0 = conv1x3x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act1_0 = nn.LeakyReLU()
+        self.act1_0 = build_activation_layer(act_cfg)
         self.bn1_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv1_1 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
-        self.act1_1 = nn.LeakyReLU()
+        self.act1_1 = build_activation_layer(act_cfg)
         self.bn1_1 = build_norm_layer(norm_cfg, out_channels)[1]
 
         if pooling:
@@ -321,7 +326,7 @@ class AsymmeDownBlock(BaseModule):
                     indice_key=indice_key,
                     bias=False)
 
-    def forward(self, x: SparseModule) -> SparseModule:
+    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
         """Forward pass."""
         shortcut = self.conv0_0(x)
         shortcut.features = self.act0_0(shortcut.features)
@@ -356,6 +361,8 @@ class AsymmeUpBlock(BaseModule):
        out_channels (int): Output channels of the block.
        norm_cfg (:obj:`ConfigDict` or dict): Config dict for
             normalization layer.
+       act_cfg (:obj:`ConfigDict` or dict): Config dict of activation layers.
+            Defaults to dict(type='LeakyReLU').
        indice_key (str, optional): Name of indice tables. Defaults to None.
        up_key (str, optional): Name of indice tables used in
            SparseInverseConv3d. Defaults to None.
@@ -365,28 +372,29 @@ class AsymmeUpBlock(BaseModule):
                  in_channels: int,
                  out_channels: int,
                  norm_cfg: ConfigType,
+                 act_cfg: ConfigType = dict(type='LeakyReLU'),
                  indice_key: Optional[str] = None,
                  up_key: Optional[str] = None):
         super().__init__()
 
         self.trans_conv = conv3x3x3(
             in_channels, out_channels, indice_key=indice_key + 'new_up')
-        self.trans_act = nn.LeakyReLU()
+        self.trans_act = build_activation_layer(act_cfg)
         self.trans_bn = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key)
-        self.act1 = nn.LeakyReLU()
+        self.act1 = build_activation_layer(act_cfg)
         self.bn1 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv2 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key)
-        self.act2 = nn.LeakyReLU()
+        self.act2 = build_activation_layer(act_cfg)
         self.bn2 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv3 = conv3x3x3(
             out_channels, out_channels, indice_key=indice_key)
-        self.act3 = nn.LeakyReLU()
+        self.act3 = build_activation_layer(act_cfg)
         self.bn3 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.up_subm = SparseInverseConv3d(
@@ -396,7 +404,8 @@ class AsymmeUpBlock(BaseModule):
             indice_key=up_key,
             bias=False)
 
-    def forward(self, x: SparseModule, skip: SparseModule) -> SparseModule:
+    def forward(self, x: SparseConvTensor,
+                skip: SparseConvTensor) -> SparseConvTensor:
         """Forward pass."""
         x_trans = self.trans_conv(x)
         x_trans.features = self.trans_act(x_trans.features)
@@ -430,6 +439,8 @@ class DDCMBlock(BaseModule):
         out_channels (int): Output channels of the block.
         norm_cfg (:obj:`ConfigDict` or dict): Config dict for
             normalization layer.
+        act_cfg (:obj:`ConfigDict` or dict): Config dict of activation layers.
+            Defaults to dict(type='Sigmoid').
         indice_key (str, optional): Name of indice tables. Defaults to None.
     """
 
@@ -437,25 +448,26 @@ class DDCMBlock(BaseModule):
                  in_channels: int,
                  out_channels: int,
                  norm_cfg: ConfigType,
+                 act_cfg: ConfigType = dict(type='Sigmoid'),
                  indice_key: Optional[str] = None):
         super().__init__()
 
         self.conv1 = conv3x1x1(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn1 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.act1 = nn.Sigmoid()
+        self.act1 = build_activation_layer(act_cfg)
 
         self.conv2 = conv1x3x1(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn2 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.act2 = nn.Sigmoid()
+        self.act2 = build_activation_layer(act_cfg)
 
         self.conv3 = conv1x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
         self.bn3 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.act3 = nn.Sigmoid()
+        self.act3 = build_activation_layer(act_cfg)
 
-    def forward(self, x: SparseModule) -> SparseModule:
+    def forward(self, x: SparseConvTensor) -> SparseConvTensor:
         """Forward pass."""
         shortcut = self.conv1(x)
         shortcut.features = self.bn1(shortcut.features)
@@ -557,7 +569,7 @@ class Asymm3DSpconv(BaseModule):
             2 * init_size, 2 * init_size, indice_key='ddcm', norm_cfg=norm_cfg)
 
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
-                batch_size: int) -> SparseModule:
+                batch_size: int) -> SparseConvTensor:
         """Forward pass."""
         coors = coors.int()
         ret = SparseConvTensor(voxel_features, coors, np.array(self.grid_size),
