@@ -2,6 +2,9 @@
 import argparse
 from os import path as osp
 
+import sys
+sys.path.append('/mnt/petrelfs/xiaozeqi/det3d')
+
 from tools.dataset_converters import indoor_converter as indoor
 from tools.dataset_converters import kitti_converter as kitti
 from tools.dataset_converters import lyft_converter as lyft_converter
