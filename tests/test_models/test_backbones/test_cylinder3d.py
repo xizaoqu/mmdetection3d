@@ -20,8 +20,8 @@ def test_cylinder3d():
     cfg = dict(
         type='Asymm3DSpconv',
         grid_size=[480, 360, 32],
-        input_dims=16,
-        init_size=32,
+        input_channels=16,
+        base_channels=32,
     )
 
     self = MODELS.build(cfg).cuda()

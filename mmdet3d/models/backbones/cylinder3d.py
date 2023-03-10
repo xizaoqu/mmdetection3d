@@ -482,8 +482,8 @@ class Asymm3DSpconv(BaseModule):
 
     Args:
         grid_size (int): Size of voxel grids.
-        input_dims (int): Input channels of the block.
-        init_size (int): Initial size of feature channels before
+        input_channels (int): Input channels of the block.
+        base_channels (int): Initial size of feature channels before
             feeding into Encoder-Decoder structure. Defaults to 16.
         norm_cfg (:obj:`ConfigDict` or dict): Config dict for normalization
             layer. Defaults to dict(type='BN1d', eps=1e-3, momentum=0.01)).
@@ -491,8 +491,8 @@ class Asymm3DSpconv(BaseModule):
 
     def __init__(self,
                  grid_size: int,
-                 input_dims: int,
-                 init_size: int = 16,
+                 input_channels: int,
+                 base_channels: int = 16,
                  norm_cfg: ConfigType = dict(
                      type='BN1d', eps=1e-3, momentum=0.01)):
         super().__init__()
@@ -500,61 +500,61 @@ class Asymm3DSpconv(BaseModule):
         self.grid_size = grid_size
 
         self.down_context = AsymmResBlock(
-            input_dims, init_size, indice_key='pre', norm_cfg=norm_cfg)
+            input_channels, base_channels, indice_key='pre', norm_cfg=norm_cfg)
         self.down_block0 = AsymmeDownBlock(
-            init_size,
-            2 * init_size,
+            base_channels,
+            2 * base_channels,
             height_pooling=True,
             indice_key='down0',
             norm_cfg=norm_cfg)
         self.down_block1 = AsymmeDownBlock(
-            2 * init_size,
-            4 * init_size,
+            2 * base_channels,
+            4 * base_channels,
             height_pooling=True,
             indice_key='down1',
             norm_cfg=norm_cfg)
         self.down_block2 = AsymmeDownBlock(
-            4 * init_size,
-            8 * init_size,
+            4 * base_channels,
+            8 * base_channels,
             pooling=True,
             height_pooling=False,
             indice_key='down2',
             norm_cfg=norm_cfg)
         self.down_block3 = AsymmeDownBlock(
-            8 * init_size,
-            16 * init_size,
+            8 * base_channels,
+            16 * base_channels,
             pooling=True,
             height_pooling=False,
             indice_key='down3',
             norm_cfg=norm_cfg)
 
         self.up_block0 = AsymmeUpBlock(
-            16 * init_size,
-            16 * init_size,
+            16 * base_channels,
+            16 * base_channels,
             indice_key='up0',
             up_key='down3',
             norm_cfg=norm_cfg)
         self.up_block1 = AsymmeUpBlock(
-            16 * init_size,
-            8 * init_size,
+            16 * base_channels,
+            8 * base_channels,
             indice_key='up1',
             up_key='down2',
             norm_cfg=norm_cfg)
         self.up_block2 = AsymmeUpBlock(
-            8 * init_size,
-            4 * init_size,
+            8 * base_channels,
+            4 * base_channels,
             indice_key='up2',
             up_key='down1',
             norm_cfg=norm_cfg)
         self.up_block3 = AsymmeUpBlock(
-            4 * init_size,
-            2 * init_size,
+            4 * base_channels,
+            2 * base_channels,
             indice_key='up3',
             up_key='down0',
             norm_cfg=norm_cfg)
 
         self.ddcm = DDCMBlock(
-            2 * init_size, 2 * init_size, indice_key='ddcm', norm_cfg=norm_cfg)
+            2 * base_channels, 2 * base_channels, indice_key='ddcm', norm_cfg=norm_cfg)
 
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
                 batch_size: int) -> SparseModule:
