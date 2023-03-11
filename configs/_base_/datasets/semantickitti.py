@@ -96,7 +96,10 @@ train_pipeline = [
     dict(
         type='LoadAnnotations3D',
         with_seg_3d=True,
+        with_bbox_3d=False,
+        with_label_3d=False,
         seg_offset=2**16,
+        seg_3d_dtype='np.int32',
         dataset_type='semantickitti'),
     dict(type='PointSegClassMapping', ),
     dict(
@@ -122,28 +125,17 @@ test_pipeline = [
     dict(
         type='LoadAnnotations3D',
         with_seg_3d=True,
+        with_bbox_3d=False,
+        with_label_3d=False,
         seg_offset=2**16,
+        seg_3d_dtype='np.int32',
         dataset_type='semantickitti'),
     dict(type='PointSegClassMapping', ),
     dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask'])
 ]
 # construct a pipeline for data and gt loading in show function
 # please keep its loading function consistent with test_pipeline (e.g. client)
-eval_pipeline = [
-    dict(
-        type='LoadPointsFromFile',
-        coord_type='LIDAR',
-        load_dim=4,
-        use_dim=4,
-        file_client_args=file_client_args),
-    dict(
-        type='LoadAnnotations3D',
-        with_seg_3d=True,
-        seg_offset=2**16,
-        dataset_type='semantickitti'),
-    dict(type='PointSegClassMapping', ),
-    dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask'])
-]
+eval_pipeline = test_pipeline
 
 train_dataloader = dict(
     batch_size=4,
@@ -155,10 +147,11 @@ train_dataloader = dict(
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
-            ann_file='train_infos.pkl',
+            ann_file='semantickitti_infos_train.pkl',
             pipeline=train_pipeline,
             metainfo=metainfo,
-            modality=input_modality)),
+            modality=input_modality,
+            ignore_index=0)),
 )
 
 test_dataloader = dict(
@@ -171,12 +164,12 @@ test_dataloader = dict(
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
-            ann_file='valid_infos.pkl',
+            ann_file='semantickitti_infos_val.pkl',
             pipeline=test_pipeline,
             metainfo=metainfo,
             modality=input_modality,
             test_mode=True,
-        )),
+            ignore_index=0)),
 )
 
 val_dataloader = test_dataloader

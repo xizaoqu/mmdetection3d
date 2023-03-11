@@ -216,22 +216,22 @@ class AsymmResBlock(BaseModule):
 
         self.conv0_0 = conv1x3x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
+        self.act0_0 = build_activation_layer(act_cfg)
         self.bn0_0 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.build_activation_layer(act_cfg)
 
         self.conv0_1 = conv3x1x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
+        self.act0_1 = build_activation_layer(act_cfg)
         self.bn0_1 = build_norm_layer(norm_cfg, out_channels)[1]
-        self.build_activation_layer(act_cfg)
 
         self.conv1_0 = conv3x1x3(
             in_channels, out_channels, indice_key=indice_key + 'bef')
-        self.build_activation_layer(act_cfg)
+        self.act1_0 = build_activation_layer(act_cfg)
         self.bn1_0 = build_norm_layer(norm_cfg, out_channels)[1]
 
         self.conv1_1 = conv1x3x3(
             out_channels, out_channels, indice_key=indice_key + 'bef')
-        self.build_activation_layer(act_cfg)
+        self.act1_1 = build_activation_layer(act_cfg)
         self.bn1_1 = build_norm_layer(norm_cfg, out_channels)[1]
 
     def forward(self, x: SparseConvTensor) -> SparseConvTensor:
@@ -566,7 +566,10 @@ class Asymm3DSpconv(BaseModule):
             norm_cfg=norm_cfg)
 
         self.ddcm = DDCMBlock(
-            2 * base_channels, 2 * base_channels, indice_key='ddcm', norm_cfg=norm_cfg)
+            2 * base_channels,
+            2 * base_channels,
+            indice_key='ddcm',
+            norm_cfg=norm_cfg)
 
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
                 batch_size: int) -> SparseConvTensor:
