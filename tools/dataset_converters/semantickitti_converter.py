@@ -31,6 +31,7 @@ fold_split = {
     'train': [0, 1, 2, 3, 4, 5, 6, 7, 9, 10],
     'val': [8],
     'test': [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    'mini': [0],
 }
 split_list = ['train', 'valid', 'test']
 
@@ -45,6 +46,8 @@ def get_semantickitti_info(split):
                         'lidat_path':'sequences/00/velodyne/000000.bin'
                     },
                     'pts_semantic_mask_path':
+                        'sequences/000/labels/000000.labbel',
+                    'pts_panoptic_mask_path':
                         'sequences/000/labels/000000.labbel',
                     'sample_id': '00'
                 },
@@ -70,9 +73,16 @@ def get_semantickitti_info(split):
                 osp.join('sequences',
                          str(i_folder).zfill(2), 'labels',
                          str(j).zfill(6) + '.label'),
+                'pts_panoptic_mask_path':
+                osp.join('sequences',
+                         str(i_folder).zfill(2), 'labels',
+                         str(j).zfill(6) + '.label'),
                 'sample_id':
                 str(i_folder) + str(j)
             })
+            if split == 'mini':
+                break
+
     data_infos.update(dict(data_list=data_list))
     return data_infos
 
@@ -100,4 +110,8 @@ def create_semantickitti_info_file(pkl_prefix, save_path):
     semantickitti_infos_test = get_semantickitti_info(split='test')
     filename = save_path / f'{pkl_prefix}_infos_test.pkl'
     print(f'SemanticKITTI info test file is saved to {filename}')
+    mmengine.dump(semantickitti_infos_test, filename)
+
+    semantickitti_infos_test = get_semantickitti_info(split='mini')
+    filename = save_path / f'{pkl_prefix}_infos_mini.pkl'
     mmengine.dump(semantickitti_infos_test, filename)

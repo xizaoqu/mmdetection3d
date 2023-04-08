@@ -21,7 +21,7 @@ class EvalPanoptic:
         id_offset (int): Offset for instance ids to concat with
             semantic labels.
         label2cat (dict[str]): Mapping from label to category.
-        ignore_index (list[int]): Indices of ignored classes in evaluation.
+        ignore_index (int): Indices of ignored classes in evaluation.
         logger (logging.Logger | str, optional): Logger used for printing.
             Defaults to None.
     """
@@ -33,18 +33,15 @@ class EvalPanoptic:
                  min_num_points: int,
                  id_offset: int,
                  label2cat: Dict[str, str],
-                 ignore_index: List[str],
+                 ignore_index: int,
                  logger: MMLogger = None):
         self.classes = classes
         self.thing_classes = thing_classes
         self.stuff_classes = stuff_classes
-        self.ignore_index = np.array(ignore_index, dtype=int)
+        self.ignore_index = ignore_index
         self.num_classes = len(classes)
         self.label2cat = label2cat
         self.logger = logger
-        self.include = np.array(
-            [n for n in range(self.num_classes) if n not in self.ignore_index],
-            dtype=int)
         self.id_offset = id_offset
         self.eps = 1e-15
         self.min_num_points = min_num_points
@@ -82,6 +79,12 @@ class EvalPanoptic:
             gt_instance_seg = gt_labels[f]['pts_instance_mask'].astype(int)
             pred_semantic_seg = seg_preds[f]['pts_semantic_mask'].astype(int)
             pred_instance_seg = seg_preds[f]['pts_instance_mask'].astype(int)
+
+            valid_mask = gt_semantic_seg != self.ignore_index
+            gt_semantic_seg = gt_semantic_seg[valid_mask]
+            gt_instance_seg = gt_instance_seg[valid_mask]
+            pred_semantic_seg = pred_semantic_seg[valid_mask]
+            pred_instance_seg = pred_instance_seg[valid_mask]
 
             self.add_semantic_sample(pred_semantic_seg, gt_semantic_seg)
             self.add_panoptic_sample(pred_semantic_seg, gt_semantic_seg,
@@ -203,9 +206,9 @@ class EvalPanoptic:
         pq_all = sq_all * rq_all
 
         # then do the REAL mean (no ignored classes)
-        sq = sq_all[self.include].mean()
-        rq = rq_all[self.include].mean()
-        pq = pq_all[self.include].mean()
+        sq = sq_all.mean()
+        rq = rq_all.mean()
+        pq = pq_all.mean()
 
         return (pq, sq, rq, pq_all, sq_all, rq_all)
 
@@ -220,8 +223,8 @@ class EvalPanoptic:
         union = tp + fp + fn
         union = np.maximum(union, self.eps)
         iou = intersection.astype(np.double) / union.astype(np.double)
-        iou_mean = (intersection[self.include].astype(np.double) /
-                    union[self.include].astype(np.double)).mean()
+        iou_mean = (intersection.astype(np.double) /
+                    union.astype(np.double)).mean()
 
         return iou_mean, iou
 
@@ -237,7 +240,6 @@ class EvalPanoptic:
         # points that were predicted of another class, but were ignore
         # (corresponds to zeroing the cols of those classes,
         # since the predictions go on the rows)
-        conf[:, self.ignore_index] = 0
 
         # get the clean stats
         tp = conf.diagonal()
@@ -274,20 +276,9 @@ class EvalPanoptic:
         instance_preds = instance_preds + 1
         gt_instances = gt_instances + 1
 
-        # only interested in points that are
-        # outside the void area (not in excluded classes)
-        for cl in self.ignore_index:
-            # make a mask for this class
-            gt_not_in_excl_mask = gt_semantics != cl
-            # remove all other points
-            semantic_preds = semantic_preds[gt_not_in_excl_mask]
-            gt_semantics = gt_semantics[gt_not_in_excl_mask]
-            instance_preds = instance_preds[gt_not_in_excl_mask]
-            gt_instances = gt_instances[gt_not_in_excl_mask]
-
         # first step is to count intersections > 0.5 IoU
         # for each class (except the ignored ones)
-        for cl in self.include:
+        for cl in range(self.num_classes):
             # get a class mask
             pred_inst_in_cl_mask = semantic_preds == cl
             gt_inst_in_cl_mask = gt_semantics == cl
@@ -356,7 +347,7 @@ def panoptic_seg_eval(gt_labels: List[np.ndarray],
                       min_num_points: int,
                       id_offset: int,
                       label2cat: Dict[str, str],
-                      ignore_index: List[int],
+                      ignore_index: int,
                       logger: MMLogger = None) -> Dict[str, float]:
     """Panoptic Segmentation Evaluation.
 
@@ -373,7 +364,7 @@ def panoptic_seg_eval(gt_labels: List[np.ndarray],
         id_offset (int): Offset for instance ids to concat with
             semantic labels.
         label2cat (dict[str]): Mapping from label to category.
-        ignore_index (list[int]): Indices of ignored classes in evaluation.
+        ignore_index (int): Indices of ignored classes in evaluation.
         logger (logging.Logger | str, optional): Logger used for printing.
             Defaults to None.
 

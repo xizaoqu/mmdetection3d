@@ -15,6 +15,7 @@ from mmdet3d.structures.det3d_data_sample import SampleList
 from mmdet3d.utils import OptConfigType
 from .utils import multiview_img_stack_batch
 from .voxelize import VoxelizationByGridShape, dynamic_scatter_3d
+import torch_scatter
 
 
 @MODELS.register_module()
@@ -460,13 +461,47 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         """
 
         if self.training:
-            pts_semantic_mask = data_sample.gt_pts_seg.pts_semantic_mask
-            voxel_semantic_mask, _, point2voxel_map = dynamic_scatter_3d(
-                F.one_hot(pts_semantic_mask.long()).float(), res_coors, 'mean',
-                True)
-            voxel_semantic_mask = torch.argmax(voxel_semantic_mask, dim=-1)
-            data_sample.gt_pts_seg.voxel_semantic_mask = voxel_semantic_mask
-            data_sample.gt_pts_seg.point2voxel_map = point2voxel_map
+            if hasattr(data_sample.gt_pts_seg, 'pts_instance_mask'):
+                pts_instance_mask = data_sample.gt_pts_seg.pts_instance_mask
+                pts_semantic_mask = data_sample.gt_pts_seg.pts_semantic_mask
+                num_points = res_coors.shape[0]
+
+                _, unique_indices_inverse = torch.unique(
+                    res_coors, return_inverse=True, dim=0)
+
+                unq_instance_labels = torch.unique(pts_instance_mask, dim=0)
+                sort_instance_labels = pts_instance_mask.new_zeros(pts_instance_mask.shape)
+
+                # map instance labels to [1 - the number of instances]
+                i = 1
+                ins2sem = pts_instance_mask.new_zeros(size=[len(unq_instance_labels)])
+                for u in unq_instance_labels:
+                    valid = pts_instance_mask == u
+                    sort_instance_labels[valid] = i
+                    ins2sem[i - 1] = pts_semantic_mask[valid][0]
+                    i = i + 1
+
+                flatten_inst_labels = res_coors.new_zeros(
+                    (num_points, i))  # i: instance number+1(background)
+                flatten_inst_labels[list(range(0, num_points)),
+                                    sort_instance_labels[list(range(0, num_points))].
+                                    cpu().numpy().tolist()] += 1
+                # scatter point-wise labels into voxel-wise
+                flatten_inst_label_sum = torch_scatter.scatter_sum(
+                    flatten_inst_labels, unique_indices_inverse, dim=0)
+                voxel_instance_labels = torch.argmax(flatten_inst_label_sum, dim=1)
+                voxel_semantic_labels = ins2sem[voxel_instance_labels - 1]
+                data_sample.gt_pts_seg.voxel_semantic_mask = voxel_semantic_labels
+                data_sample.gt_pts_seg.voxel_instance_mask = voxel_instance_labels
+            else:
+                pts_semantic_mask = data_sample.gt_pts_seg.pts_semantic_mask
+                voxel_semantic_mask, _, point2voxel_map = dynamic_scatter_3d(
+                    F.one_hot(pts_semantic_mask.long()).float(), res_coors, 'mean',
+                    True)
+                voxel_semantic_mask = torch.argmax(voxel_semantic_mask, dim=-1)
+                data_sample.gt_pts_seg.voxel_semantic_mask = voxel_semantic_mask
+                data_sample.gt_pts_seg.point2voxel_map = point2voxel_map
+
         else:
             pseudo_tensor = res_coors.new_ones([res_coors.shape[0], 1]).float()
             _, _, point2voxel_map = dynamic_scatter_3d(pseudo_tensor,

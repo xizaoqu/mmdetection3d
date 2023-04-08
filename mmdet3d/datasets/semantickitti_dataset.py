@@ -6,6 +6,7 @@ import numpy as np
 from mmdet3d.registry import DATASETS
 from .seg3d_dataset import Seg3DDataset
 
+from os import path as osp
 
 @DATASETS.register_module()
 class SemanticKittiDataset(Seg3DDataset):
@@ -93,3 +94,57 @@ class SemanticKittiDataset(Seg3DDataset):
         for idx in metainfo['seg_label_mapping']:
             seg_label_mapping[idx] = metainfo['seg_label_mapping'][idx]
         return seg_label_mapping
+
+    def parse_data_info(self, info: dict) -> dict:
+        """Process the raw data info.
+
+        Convert all relative path of needed modality data file to
+        the absolute path. And process
+        the `instances` field to `ann_info` in training stage.
+
+        Args:
+            info (dict): Raw info dict.
+
+        Returns:
+            dict: Has `ann_info` in training stage. And
+            all path has been converted to absolute path.
+        """
+        if self.modality['use_lidar']:
+            info['lidar_points']['lidar_path'] = \
+                osp.join(
+                    self.data_prefix.get('pts', ''),
+                    info['lidar_points']['lidar_path'])
+            if 'num_pts_feats' in info['lidar_points']:
+                info['num_pts_feats'] = info['lidar_points']['num_pts_feats']
+            info['lidar_path'] = info['lidar_points']['lidar_path']
+
+        if self.modality['use_camera']:
+            for cam_id, img_info in info['images'].items():
+                if 'img_path' in img_info:
+                    img_info['img_path'] = osp.join(
+                        self.data_prefix.get('img', ''), img_info['img_path'])
+
+        if 'pts_instance_mask_path' in info:
+            info['pts_instance_mask_path'] = \
+                osp.join(self.data_prefix.get('pts_instance_mask', ''),
+                         info['pts_instance_mask_path'])
+
+        if 'pts_semantic_mask_path' in info:
+            info['pts_semantic_mask_path'] = \
+                osp.join(self.data_prefix.get('pts_semantic_mask', ''),
+                         info['pts_semantic_mask_path'])
+        
+        if 'pts_panoptic_mask_path' in info:
+            info['pts_panoptic_mask_path'] = \
+                osp.join(self.data_prefix.get('pts_panoptic_mask', ''),
+                         info['pts_panoptic_mask_path'])
+
+        # only be used in `PointSegClassMapping` in pipeline
+        # to map original semantic class to valid category ids.
+        info['seg_label_mapping'] = self.seg_label_mapping
+
+        # 'eval_ann_info' will be updated in loading transforms
+        if self.test_mode and self.load_eval_anns:
+            info['eval_ann_info'] = dict()
+
+        return info

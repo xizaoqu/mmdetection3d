@@ -16,6 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a 3D detector')
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument('--checkpoint', help='the dir to save logs and models')
     parser.add_argument(
         '--amp',
         action='store_true',
@@ -114,6 +115,8 @@ def main():
     if args.resume == 'auto':
         cfg.resume = True
         cfg.load_from = None
+    elif args.checkpoint is not None:
+        cfg.load_from = args.checkpoint
     elif args.resume is not None:
         cfg.resume = True
         cfg.load_from = args.resume
