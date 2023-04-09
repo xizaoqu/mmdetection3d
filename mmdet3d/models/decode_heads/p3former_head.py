@@ -10,6 +10,14 @@ from mmcv.cnn.bricks.transformer import FFN, MultiheadAttention
 
 from mmengine.structures import InstanceData
 
+from mmcv.ops import SubMConv3d
+
+def pol2continue(indice_split):
+    for idx in range(len(indice_split)):
+        tmp = indice_split[idx]
+        tmask = tmp[:,1]>0.5
+        tmp[tmask,1] = 1 - tmp[tmask,1]
+    return indice_split
 
 @MODELS.register_module()
 class Masked_Focal_Attention(nn.Module):
@@ -49,6 +57,11 @@ class Masked_Focal_Attention(nn.Module):
         self.norm_out = build_norm_layer(norm_cfg, self.feat_channels)[1]
         self.input_norm_in = build_norm_layer(norm_cfg, self.feat_channels)[1]
         self.input_norm_out = build_norm_layer(norm_cfg, self.feat_channels)[1]
+
+        self.activation = build_activation_layer(act_cfg)
+
+        self.fc_layer = nn.Linear(self.feat_channels, self.out_channels, 1)
+        self.fc_norm = build_norm_layer(norm_cfg, self.out_channels)[1]
 
     def forward(self, queries, features, masks):
         queries = queries.reshape(-1, self.in_channels)
@@ -90,6 +103,10 @@ class Masked_Focal_Attention(nn.Module):
         queries = update_gate * param_out.unsqueeze(
             -2) + input_gate * input_out
 
+        queries = self.fc_layer(queries)
+        queries = self.fc_norm(queries)
+        queries = self.activation(queries)
+
         return queries
 
 @MODELS.register_module()
@@ -117,8 +134,8 @@ class Transformer_Decoder(nn.Module):
         cross_attn_cfg['feat_channels'] = embed_dims
         cross_attn_cfg['out_channels'] = embed_dims
         self.cross_attn = MODELS.build(cross_attn_cfg)
-        self.cross_norm = build_norm_layer(
-            dict(type='LN'), embed_dims * conv_kernel_size)[1]
+        # self.cross_norm = build_norm_layer(
+        #     dict(type='LN'), embed_dims * conv_kernel_size)[1]
         self.self_attn = MultiheadAttention(embed_dims * conv_kernel_size,
                                                 num_heads, dropout)
         self.self_norm = build_norm_layer(
@@ -134,7 +151,7 @@ class Transformer_Decoder(nn.Module):
 
     def forward_single(self, queries, features, mask_preds):
         queries = self.cross_attn(queries, features, mask_preds)  # [N,1,C]
-        queries = self.cross_norm(queries)
+        # queries = self.cross_norm(queries)
         queries = self.self_norm(self.self_attn(queries))
         queries = queries.permute(1, 0, 2)  # [1,N,C]
         if self.with_ffn:
@@ -213,7 +230,8 @@ class P3FormerHead(nn.Module):
                  point_cloud_range=[]):
         super().__init__()
 
-        self.queries = nn.Linear(embed_dims, num_queries).weight
+        self.queries = SubMConv3d(embed_dims, num_queries, indice_key="logit", 
+                                    kernel_size=1, stride=1, padding=0, bias=False)
         self.num_classes = num_classes
         self.ignore_index = ignore_index
         self.mask_score_thr = mask_score_thr
@@ -228,11 +246,10 @@ class P3FormerHead(nn.Module):
         self.input_channels = input_channels
 
         # build first conv
-        self.first_conv = nn.Sequential(
-                nn.Linear(input_channels, embed_dims, bias=False),
-                build_norm_layer(dict(type='LN'), embed_dims)[1],
-                build_activation_layer(dict(type='GELU')))
-
+        # self.first_conv = nn.Sequential(
+        #         nn.Linear(input_channels, embed_dims, bias=False),
+        #         build_norm_layer(dict(type='LN'), embed_dims)[1],
+        #         build_activation_layer(dict(type='GELU')))
 
         # build loss
         self.loss_cls = MODELS.build(loss_cls)
@@ -248,7 +265,7 @@ class P3FormerHead(nn.Module):
                             loss_weight=1.0))
             self.loss_lovasz = MODELS.build(dict(type='LovaszLoss',
                                                 reduction='none',))
-            self.sem_queries = nn.Linear(embed_dims, num_classes).weight
+            self.sem_queries = nn.Conv3d(embed_dims, num_classes, kernel_size=1, stride=1, padding=0, bias=False)
 
         # build assigner
         if assigner_zero_layer_cfg is not None:
@@ -277,14 +294,21 @@ class P3FormerHead(nn.Module):
             self.cart_proj = nn.Linear(pos_dim, embed_dims)
             self.cart_norm = build_norm_layer(dict(type='LN'), embed_dims)[1]
 
-            self.pe_conv = nn.Linear(embed_dims, embed_dims)
-            self.pe_norm = build_norm_layer(dict(type='LN'), embed_dims)[1]
+            # self.pe_conv = nn.Linear(embed_dims, embed_dims)
+            # self.pe_norm = build_norm_layer(dict(type='LN'), embed_dims)[1]
 
-            self.feat_conv = nn.Sequential(
-                nn.Linear(embed_dims, embed_dims, bias=False),
-                build_norm_layer(dict(type='LN'), embed_dims)[1],
-                build_activation_layer(dict(type='GELU')))
+            # self.feat_conv = nn.Sequential(
+            #     nn.Linear(embed_dims, embed_dims, bias=False),
+            #     build_norm_layer(dict(type='LN'), embed_dims)[1],
+            #     build_activation_layer(dict(type='GELU')))
 
+            self.pe_conv = nn.ModuleList()
+            self.pe_conv.append(
+                nn.Linear(embed_dims, embed_dims, bias=False))
+            self.pe_conv.append(
+                build_norm_layer(dict(type='LN'), embed_dims)[1])
+            self.pe_conv.append(build_activation_layer(dict(type='ReLU', inplace=True),))    
+            
         else:
             self.feat_conv = nn.Sequential(
                 nn.Linear(embed_dims, embed_dims, bias=False),
@@ -316,20 +340,21 @@ class P3FormerHead(nn.Module):
                     features,
                     voxel_coors,
                     batch_size):
-        for b in range(len(features)):
-            features[b] = self.first_conv(features[b])
+        # for b in range(len(features)):
+        #     features[b] = self.first_conv(features[b])
 
         pe_features, mpe = self.mpe(features, voxel_coors, batch_size)
-        queries = self.queries[None, ...].repeat(batch_size, 1, 1)
+        queries = self.queries.weight.clone().squeeze(0).squeeze(0).repeat(batch_size,1,1).permute(0,2,1)
         queries = [queries[i] for i in range(queries.shape[0])]
 
         sem_preds = []
         if self.use_sem_loss:
-            sem_queries = self.sem_queries.repeat(batch_size, 1, 1)
+            sem_queries = self.sem_queries.weight.clone().squeeze(-1).squeeze(-1).repeat(1,1,batch_size).permute(2,0,1)
             for b in range(len(pe_features)):
                 sem_pred = torch.einsum("nc,vc->vn", sem_queries[b], pe_features[b])
                 sem_preds.append(sem_pred)
-                stuff_queries = sem_queries[b][self.num_thing_classes:-1]
+                ## modify
+                stuff_queries = sem_queries[b][self.num_thing_classes+1:]
                 queries[b] = torch.cat([queries[b], stuff_queries], dim=0)
 
         return queries, pe_features, mpe, sem_preds
@@ -383,13 +408,17 @@ class P3FormerHead(nn.Module):
         elif self.pe_type == 'mpe':
             mpe = []
             for i in range(batch_size):
+                normed_polar_coors = pol2continue(normed_polar_coors)
                 cart_pe = self.cart_norm(
                     self.cart_proj(normed_cat_coors[i].float()))
                 polar_pe = self.polar_norm(
                     self.polar_proj(normed_polar_coors[i].float()))
-                pe = self.pe_norm(self.pe_conv(cart_pe + polar_pe))
+                for pc in self.pe_conv:
+                    polar_pe = pc(polar_pe)
+                    cart_pe = pc(cart_pe)
+                    features[i] = pc(features[i])
+                pe = cart_pe + polar_pe
                 features[i] = features[i] + pe
-                features[i] = self.feat_conv(features[i])
                 if self.pa_seg:
                     mpe.append(pe)
 
@@ -806,18 +835,31 @@ class P3FormerHead(nn.Module):
             class_pred = class_preds[i]
             mask_pred = mask_preds[i]
 
-            scores = class_pred[:self.num_queries][:, :self.num_thing_classes]
+            #
+            scores = class_pred[:self.num_queries][:, 1:self.num_thing_classes+1] #排除0
             thing_scores, thing_labels = scores.sigmoid().max(dim=1)
+            thing_labels = thing_labels + 1 
             stuff_scores = class_pred[
-                self.num_queries:][:, self.num_thing_classes:-1].diag().sigmoid()
+                self.num_queries:][:, self.num_thing_classes+1:].diag().sigmoid()
             stuff_labels = torch.arange(
-                0, self.num_stuff_classes) + self.num_thing_classes
+                0, self.num_stuff_classes) + self.num_thing_classes+1
             stuff_labels = stuff_labels.to(thing_labels.device)
+
+            # scores = class_pred[:self.num_queries][:, :self.num_thing_classes]
+            # thing_scores, thing_labels = scores.sigmoid().max(dim=1)
+            # stuff_scores = class_pred[
+            #     self.num_queries:][:, self.num_thing_classes:-1].diag().sigmoid()
+            # stuff_labels = torch.arange(
+            #     0, self.num_stuff_classes) + self.num_thing_classes
+            # stuff_labels = stuff_labels.to(thing_labels.device)
 
 
             scores = torch.cat([thing_scores*2, stuff_scores], dim=0)
             labels = torch.cat([thing_labels, stuff_labels], dim=0)
 
+            # modify
+            labels[labels==0] = 20
+            labels -= 1
             keep = ((scores > self.score_thr) & (labels != self.ignore_index))
             cur_scores = scores[keep]  # [pos_proposal_num]
 
@@ -828,7 +870,7 @@ class P3FormerHead(nn.Module):
             semantic_pred = cur_classes.new_full((cur_masks.shape[-1], ),
                                                  self.ignore_index)
             instance_id = cur_classes.new_full((cur_masks.shape[-1], ),
-                                               self.ignore_index)
+                                               0)
 
             if cur_masks.shape[0] == 0:
                 # We didn't detect any mask :(
@@ -844,13 +886,12 @@ class P3FormerHead(nn.Module):
                 pred_class = int(cur_classes[k].item())
                 isthing = pred_class in self.thing_class
                 mask = cur_mask_ids == k
-                # don't pred ignore class
                 # mask_area = mask.sum().item()
                 # original_area = (cur_masks[k] >=
                 #                  self.mask_score_thr).sum().item()
                 # if mask_area > 0 and original_area > 0:
-                    # if mask_area / original_area < self.iou_thr and isthing:
-                    #     continue
+                #     if mask_area / original_area < self.iou_thr and isthing:
+                #         continue
                 semantic_pred[mask] = pred_class
                 if isthing:
                     instance_id[mask] = id

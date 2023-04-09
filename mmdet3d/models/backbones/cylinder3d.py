@@ -456,6 +456,16 @@ class Asymm3DSpconv(BaseModule):
             indice_key='ddcm',
             norm_cfg=norm_cfg)
 
+        self.addConv = SubMConv3d(
+            64,
+            128,
+            kernel_size=3,
+            padding=1,
+            bias=False,
+            indice_key="mc")
+        self.addBn = build_norm_layer(norm_cfg, 128)[1]
+        self.addAct = build_activation_layer(dict(type='LeakyReLU'))
+
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
                 batch_size: int) -> SparseConvTensor:
         """Forward pass."""
@@ -477,4 +487,8 @@ class Asymm3DSpconv(BaseModule):
         ddcm = self.ddcm(up)
         ddcm.features = torch.cat((ddcm.features, up.features), 1)
 
+        ddcm = self.addConv(ddcm)
+        ddcm.features = self.addBn(ddcm.features)
+        ddcm.features = self.addAct(ddcm.features)
+        
         return ddcm

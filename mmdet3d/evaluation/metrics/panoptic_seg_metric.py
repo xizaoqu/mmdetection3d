@@ -91,6 +91,6 @@ class PanopticSegMetric(SegMetric):
         ret_dict = panoptic_seg_eval(gt_labels, seg_preds, classes,
                                      thing_classes, stuff_classes,
                                      self.min_num_points, self.id_offset,
-                                     label2cat, [ignore_index], logger)
+                                     label2cat, ignore_index, logger)
 
         return ret_dict
