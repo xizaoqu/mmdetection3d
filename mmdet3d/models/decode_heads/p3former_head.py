@@ -15,8 +15,9 @@ from mmcv.ops import SubMConv3d
 def pol2continue(indice_split):
     for idx in range(len(indice_split)):
         tmp = indice_split[idx]
-        tmask = tmp[:,1]>0.5
-        tmp[tmask,1] = 1 - tmp[tmask,1]
+        tmp2 = indice_split[idx].clone()
+        tmask = tmp2[:,1]>0.5
+        tmp[tmask,1] = 1 - tmp2[tmask,1]
     return indice_split
 
 @MODELS.register_module()
@@ -202,7 +203,6 @@ class P3FormerHead(nn.Module):
     def __init__(self,
                  num_classes,
                  num_queries,
-                 input_channels,
                  embed_dims,
                  num_thing_classes=8,
                  num_stuff_classes=11,
@@ -243,7 +243,6 @@ class P3FormerHead(nn.Module):
         self.num_stuff_classes = num_stuff_classes
         self.num_decoder_layers = num_decoder_layers
         self.num_queries = num_queries
-        self.input_channels = input_channels
 
         # build first conv
         # self.first_conv = nn.Sequential(
@@ -353,8 +352,7 @@ class P3FormerHead(nn.Module):
             for b in range(len(pe_features)):
                 sem_pred = torch.einsum("nc,vc->vn", sem_queries[b], pe_features[b])
                 sem_preds.append(sem_pred)
-                ## modify
-                stuff_queries = sem_queries[b][self.num_thing_classes+1:]
+                stuff_queries = sem_queries[b][self.num_thing_classes:-1]
                 queries[b] = torch.cat([queries[b], stuff_queries], dim=0)
 
         return queries, pe_features, mpe, sem_preds
@@ -408,7 +406,7 @@ class P3FormerHead(nn.Module):
         elif self.pe_type == 'mpe':
             mpe = []
             for i in range(batch_size):
-                normed_polar_coors = pol2continue(normed_polar_coors)
+                # normed_polar_coors = pol2continue(normed_polar_coors)
                 cart_pe = self.cart_norm(
                     self.cart_proj(normed_cat_coors[i].float()))
                 polar_pe = self.polar_norm(
@@ -836,30 +834,30 @@ class P3FormerHead(nn.Module):
             mask_pred = mask_preds[i]
 
             #
-            scores = class_pred[:self.num_queries][:, 1:self.num_thing_classes+1] #排除0
-            thing_scores, thing_labels = scores.sigmoid().max(dim=1)
-            thing_labels = thing_labels + 1 
-            stuff_scores = class_pred[
-                self.num_queries:][:, self.num_thing_classes+1:].diag().sigmoid()
-            stuff_labels = torch.arange(
-                0, self.num_stuff_classes) + self.num_thing_classes+1
-            stuff_labels = stuff_labels.to(thing_labels.device)
-
-            # scores = class_pred[:self.num_queries][:, :self.num_thing_classes]
+            # scores = class_pred[:self.num_queries][:, 1:self.num_thing_classes+1] #排除0
             # thing_scores, thing_labels = scores.sigmoid().max(dim=1)
+            # thing_labels = thing_labels + 1 
             # stuff_scores = class_pred[
-            #     self.num_queries:][:, self.num_thing_classes:-1].diag().sigmoid()
+            #     self.num_queries:][:, self.num_thing_classes+1:].diag().sigmoid()
             # stuff_labels = torch.arange(
-            #     0, self.num_stuff_classes) + self.num_thing_classes
+            #     0, self.num_stuff_classes) + self.num_thing_classes+1
             # stuff_labels = stuff_labels.to(thing_labels.device)
+
+            scores = class_pred[:self.num_queries][:, :self.num_thing_classes]
+            thing_scores, thing_labels = scores.sigmoid().max(dim=1)
+            stuff_scores = class_pred[
+                self.num_queries:][:, self.num_thing_classes:-1].diag().sigmoid()
+            stuff_labels = torch.arange(
+                0, self.num_stuff_classes) + self.num_thing_classes
+            stuff_labels = stuff_labels.to(thing_labels.device)
 
 
             scores = torch.cat([thing_scores*2, stuff_scores], dim=0)
             labels = torch.cat([thing_labels, stuff_labels], dim=0)
 
             # modify
-            labels[labels==0] = 20
-            labels -= 1
+            # labels[labels==0] = 20
+            # labels -= 1
             keep = ((scores > self.score_thr) & (labels != self.ignore_index))
             cur_scores = scores[keep]  # [pos_proposal_num]
 
@@ -886,12 +884,6 @@ class P3FormerHead(nn.Module):
                 pred_class = int(cur_classes[k].item())
                 isthing = pred_class in self.thing_class
                 mask = cur_mask_ids == k
-                # mask_area = mask.sum().item()
-                # original_area = (cur_masks[k] >=
-                #                  self.mask_score_thr).sum().item()
-                # if mask_area > 0 and original_area > 0:
-                #     if mask_area / original_area < self.iou_thr and isthing:
-                #         continue
                 semantic_pred[mask] = pred_class
                 if isthing:
                     instance_id[mask] = id

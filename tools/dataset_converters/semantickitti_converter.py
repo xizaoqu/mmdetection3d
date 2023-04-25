@@ -32,8 +32,9 @@ fold_split = {
     'val': [8],
     'test': [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
     'mini': [0],
+    'trainval': [0,1,2,3,4,5,6,7,8,9,10]
 }
-split_list = ['train', 'valid', 'test']
+split_list = ['train', 'valid', 'test', 'trainval']
 
 
 def get_semantickitti_info(split):
@@ -108,6 +109,11 @@ def create_semantickitti_info_file(pkl_prefix, save_path):
     print(f'SemanticKITTI info val file is saved to {filename}')
     mmengine.dump(semantickitti_infos_val, filename)
     semantickitti_infos_test = get_semantickitti_info(split='test')
+    filename = save_path / f'{pkl_prefix}_infos_test.pkl'
+    print(f'SemanticKITTI info test file is saved to {filename}')
+    mmengine.dump(semantickitti_infos_test, filename)
+
+    semantickitti_infos_test = get_semantickitti_info(split='trainval')
     filename = save_path / f'{pkl_prefix}_infos_test.pkl'
     print(f'SemanticKITTI info test file is saved to {filename}')
     mmengine.dump(semantickitti_infos_test, filename)

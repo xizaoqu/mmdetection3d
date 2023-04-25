@@ -2422,6 +2422,13 @@ class PolarMix(BaseTransform):
         points = input_dict['points']
         pts_semantic_mask = input_dict['pts_semantic_mask']
 
+        mix_panoptic = False
+        if 'pts_instance_mask' in mix_results:
+            mix_instance_mask = mix_results['pts_instance_mask']
+            mix_instance_mask += (1000<<16) # not overlap id
+            pts_instance_mask = input_dict['pts_instance_mask']
+            mix_panoptic = True
+
         # 1. swap point cloud
         if np.random.random() < self.swap_ratio:
             start_angle = (np.random.random() - 1) * np.pi  # -pi~0
@@ -2441,23 +2448,38 @@ class PolarMix(BaseTransform):
                 (pts_semantic_mask[idx.numpy()],
                  mix_pts_semantic_mask[mix_idx.numpy()]),
                 axis=0)
+            
+            if mix_panoptic:
+                pts_instance_mask = np.concatenate(
+                    (pts_instance_mask[idx.numpy()],
+                    mix_instance_mask[mix_idx.numpy()]),
+                    axis=0)                
 
         # 2. rotate-pasting
         if np.random.random() < self.rotate_paste_ratio:
             # extract instance points
             instance_points, instance_pts_semantic_mask = [], []
+            if mix_panoptic:
+                instance_pts_instance_mask = []
             for instance_class in self.instance_classes:
                 mix_idx = mix_pts_semantic_mask == instance_class
                 instance_points.append(mix_points[mix_idx])
                 instance_pts_semantic_mask.append(
                     mix_pts_semantic_mask[mix_idx])
+                if mix_panoptic:
+                    instance_pts_instance_mask.append(mix_instance_mask[mix_idx])
             instance_points = mix_points.cat(instance_points)
             instance_pts_semantic_mask = np.concatenate(
                 instance_pts_semantic_mask, axis=0)
+            if mix_panoptic:
+               instance_pts_instance_mask = np.concatenate(
+                instance_pts_instance_mask, axis=0) 
 
             # rotate-copy
             copy_points = [instance_points]
             copy_pts_semantic_mask = [instance_pts_semantic_mask]
+            if mix_panoptic:
+                copy_pts_instance_mask = [instance_pts_instance_mask]
             angle_list = [
                 np.random.random() * np.pi * 2 / 3,
                 (np.random.random() + 1) * np.pi * 2 / 3
@@ -2467,16 +2489,26 @@ class PolarMix(BaseTransform):
                 new_points.rotate(angle)
                 copy_points.append(new_points)
                 copy_pts_semantic_mask.append(instance_pts_semantic_mask)
+                if mix_panoptic:
+                    copy_pts_instance_mask.append(instance_pts_instance_mask)
             copy_points = instance_points.cat(copy_points)
             copy_pts_semantic_mask = np.concatenate(
                 copy_pts_semantic_mask, axis=0)
+            if mix_panoptic:
+                copy_pts_instance_mask = np.concatenate(
+                copy_pts_instance_mask, axis=0)
 
             points = points.cat([points, copy_points])
             pts_semantic_mask = np.concatenate(
                 (pts_semantic_mask, copy_pts_semantic_mask), axis=0)
+            if mix_panoptic:
+                pts_instance_mask = np.concatenate(
+                (pts_instance_mask, copy_pts_instance_mask), axis=0)
 
         input_dict['points'] = points
         input_dict['pts_semantic_mask'] = pts_semantic_mask
+        if mix_panoptic:
+            input_dict['pts_instance_mask'] = pts_instance_mask
         return input_dict
 
     def transform(self, input_dict: dict) -> dict:
@@ -2606,6 +2638,15 @@ class LaserMix(BaseTransform):
                                  num_areas + 1)
         out_points = []
         out_pts_semantic_mask = []
+
+        mix_panoptic = False
+        if 'pts_instance_mask' in mix_results:
+            mix_instance_mask = mix_results['pts_instance_mask']
+            mix_instance_mask += (1000<<16) # not overlap id
+            pts_instance_mask = input_dict['pts_instance_mask']
+            out_pts_instance_mask = []
+            mix_panoptic = True
+
         for i in range(num_areas):
             # convert angle to radian
             start_angle = angle_list[i + 1] / 180 * np.pi
@@ -2614,15 +2655,23 @@ class LaserMix(BaseTransform):
                 idx = (pitch > start_angle) & (pitch <= end_angle)
                 out_points.append(points[idx])
                 out_pts_semantic_mask.append(pts_semantic_mask[idx.numpy()])
+                if mix_panoptic:
+                    out_pts_instance_mask.append(pts_instance_mask[idx.numpy()])
             else:  # pickle from mixed point cloud
                 idx = (mix_pitch > start_angle) & (mix_pitch <= end_angle)
                 out_points.append(mix_points[idx])
                 out_pts_semantic_mask.append(
                     mix_pts_semantic_mask[idx.numpy()])
+                if mix_panoptic:
+                    out_pts_instance_mask.append(mix_instance_mask[idx.numpy()])
         out_points = points.cat(out_points)
         out_pts_semantic_mask = np.concatenate(out_pts_semantic_mask, axis=0)
         input_dict['points'] = out_points
         input_dict['pts_semantic_mask'] = out_pts_semantic_mask
+
+        if mix_panoptic:
+            out_pts_instance_mask = np.concatenate(out_pts_instance_mask, axis=0)
+            input_dict['pts_instance_mask'] = out_pts_instance_mask
         return input_dict
 
     def transform(self, input_dict: dict) -> dict:

@@ -17,4 +17,5 @@ python -m torch.distributed.launch \
     $(dirname "$0")/train.py \
     $CONFIG \
     --launcher pytorch ${@:3} \
-    --checkpoint=/nvme/xiaozeqi/converted_model_small.pth
+    # --checkpoint=work_dirs/p3former_small_wo_pretrain/epoch_30.pth
+    # --checkpoint=/nvme/xiaozeqi/converted_model_small.pth

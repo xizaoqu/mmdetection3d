@@ -415,7 +415,9 @@ class Asymm3DSpconv(BaseModule):
                  height_pooing: List[bool] = [True, True, False, False],
                  norm_cfg: ConfigType = dict(
                      type='BN1d', eps=1e-3, momentum=0.01),
-                 init_cfg=None):
+                 init_cfg=None,
+                 more_conv=False,
+                 out_channels=128):
         super().__init__(init_cfg=init_cfg)
 
         self.grid_size = grid_size
@@ -456,15 +458,17 @@ class Asymm3DSpconv(BaseModule):
             indice_key='ddcm',
             norm_cfg=norm_cfg)
 
-        self.addConv = SubMConv3d(
-            64,
-            128,
-            kernel_size=3,
-            padding=1,
-            bias=False,
-            indice_key="mc")
-        self.addBn = build_norm_layer(norm_cfg, 128)[1]
-        self.addAct = build_activation_layer(dict(type='LeakyReLU'))
+        self.more_conv = more_conv
+        if self.more_conv:
+            self.addConv = SubMConv3d(
+                base_channels*4,
+                out_channels,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                indice_key="mc")
+            self.addBn = build_norm_layer(norm_cfg, 128)[1]
+            self.addAct = build_activation_layer(dict(type='LeakyReLU'))
 
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
                 batch_size: int) -> SparseConvTensor:
@@ -487,8 +491,9 @@ class Asymm3DSpconv(BaseModule):
         ddcm = self.ddcm(up)
         ddcm.features = torch.cat((ddcm.features, up.features), 1)
 
-        ddcm = self.addConv(ddcm)
-        ddcm.features = self.addBn(ddcm.features)
-        ddcm.features = self.addAct(ddcm.features)
+        if self.more_conv:
+            ddcm = self.addConv(ddcm)
+            ddcm.features = self.addBn(ddcm.features)
+            ddcm.features = self.addAct(ddcm.features)
         
         return ddcm
