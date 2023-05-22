@@ -467,7 +467,7 @@ class Asymm3DSpconv(BaseModule):
                 padding=1,
                 bias=False,
                 indice_key="mc")
-            self.addBn = build_norm_layer(norm_cfg, 128)[1]
+            self.addBn = build_norm_layer(norm_cfg, out_channels)[1]
             self.addAct = build_activation_layer(dict(type='LeakyReLU'))
 
     def forward(self, voxel_features: torch.Tensor, coors: torch.Tensor,
