@@ -15,7 +15,7 @@ from .coders import (AnchorFreeBBoxCoder, CenterPointBBoxCoder,
 from .samplers import (BaseSampler, CombinedSampler,
                        InstanceBalancedPosSampler, IoUBalancedNegSampler,
                        IoUNegPiecewiseSampler, OHEMSampler, PseudoSampler,
-                       RandomSampler, SamplingResult)
+                       RandomSampler, SamplingResult, MyMaskPseudoSampler)
 from .voxel import VoxelGenerator
 
 __all__ = [
@@ -28,5 +28,5 @@ __all__ = [
     'PGDBBoxCoder', 'SMOKECoder', 'MonoFlexCoder', 'VoxelGenerator',
     'AlignedAnchor3DRangeGenerator', 'Anchor3DRangeGenerator',
     'build_prior_generator', 'AlignedAnchor3DRangeGeneratorPerCls',
-    'build_anchor_generator', 'ANCHOR_GENERATORS', 'PRIOR_GENERATORS'
+    'build_anchor_generator', 'ANCHOR_GENERATORS', 'PRIOR_GENERATORS', 'MyMaskPseudoSampler'
 ]

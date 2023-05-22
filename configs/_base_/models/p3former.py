@@ -44,7 +44,7 @@ model = dict(
                         dict(type='mmdet.FocalLossCost', weight=1.0, binary_input=True, gamma=2.0, alpha=0.25),
                         dict(type='mmdet.DiceCost', weight=2.0, pred_act=True),
                     ]),
-        sampler_cfg=dict(type='mmdet.MaskPseudoSampler'),
+        sampler_cfg=dict(type='MyMaskPseudoSampler'),
         loss_mask=dict(
             type='mmdet.FocalLoss',
             use_sigmoid=True,

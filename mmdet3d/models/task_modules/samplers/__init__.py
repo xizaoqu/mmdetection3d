@@ -7,9 +7,10 @@ from mmdet.models.task_modules.samplers import (BaseSampler, CombinedSampler,
 
 from .iou_neg_piecewise_sampler import IoUNegPiecewiseSampler
 from .pseudosample import PseudoSampler
+from .mask_pseduo_sampler import MyMaskPseudoSampler
 
 __all__ = [
     'BaseSampler', 'PseudoSampler', 'RandomSampler',
     'InstanceBalancedPosSampler', 'IoUBalancedNegSampler', 'CombinedSampler',
-    'OHEMSampler', 'SamplingResult', 'IoUNegPiecewiseSampler'
+    'OHEMSampler', 'SamplingResult', 'IoUNegPiecewiseSampler', 'MyMaskPseudoSampler'
 ]
