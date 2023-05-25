@@ -103,7 +103,7 @@ eval_pipeline = [
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
-        load_dim=4,
+        load_dim=5,
         use_dim=4,
         backend_args=backend_args),
     dict(
