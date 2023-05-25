@@ -14,6 +14,7 @@ from shapely.geometry import MultiPoint, box
 
 from mmdet3d.datasets.convert_utils import NuScenesNameMapping
 from mmdet3d.structures import points_cam2img
+import multiprocessing
 
 nus_categories = ('car', 'truck', 'trailer', 'bus', 'construction_vehicle',
                   'bicycle', 'motorcycle', 'pedestrian', 'traffic_cone',
@@ -165,14 +166,32 @@ def _fill_trainval_infos(nusc,
     train_nusc_infos = []
     val_nusc_infos = []
 
-    for sample in mmengine.track_iter_progress(nusc.sample):
+    # def cp(sample):
+    #     lidar_token = sample['data']['LIDAR_TOP']
+    #     lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
+    #     os.system("aws --endpoint-url=http://10.140.2.254 s3 cp s3://openmmlab/datasets/detection3d/nuscenes/samples/LIDAR_TOP/"+lidar_path.split('/')[-1]+" /nvme/xiaozeqi/nuscenes/samples/LIDAR_TOP/ --no-sign-request")
+
+    # for sample in mmengine.track_iter_progress(nusc.sample):
+    #     t = multiprocessing.Process(target=cp, args=(sample,))
+    #     t.start()
+
+    #     # lidar_token = sample['data']['LIDAR_TOP']
+    #     # sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+    #     # cs_record = nusc.get('calibrated_sensor',
+    #     #                      sd_rec['calibrated_sensor_token'])
+    #     # pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
+    #     # lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
+
+    #     # os.system("aws --endpoint-url=http://10.140.2.254 s3 cp s3://openmmlab/datasets/detection3d"+lidar_path[6:]+" /nvme/xiaozeqi/nuscenes/samples/LIDAR_TOP/ --no-sign-request")
+
+    def process(sample):
         lidar_token = sample['data']['LIDAR_TOP']
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
         cs_record = nusc.get('calibrated_sensor',
                              sd_rec['calibrated_sensor_token'])
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
-
+        # nusc.get('lidarseg', sd_rec['ego_pose_token'])  
         mmengine.check_file_exist(lidar_path)
 
         info = {
@@ -186,6 +205,119 @@ def _fill_trainval_infos(nusc,
             'ego2global_translation': pose_record['translation'],
             'ego2global_rotation': pose_record['rotation'],
             'timestamp': sample['timestamp'],
+        }
+
+        l2e_r = info['lidar2ego_rotation']
+        l2e_t = info['lidar2ego_translation']
+        e2g_r = info['ego2global_rotation']
+        e2g_t = info['ego2global_translation']
+        l2e_r_mat = Quaternion(l2e_r).rotation_matrix
+        e2g_r_mat = Quaternion(e2g_r).rotation_matrix
+
+        # obtain 6 image's information per frame
+        camera_types = [
+            'CAM_FRONT',
+            'CAM_FRONT_RIGHT',
+            'CAM_FRONT_LEFT',
+            'CAM_BACK',
+            'CAM_BACK_LEFT',
+            'CAM_BACK_RIGHT',
+        ]
+        for cam in camera_types:
+            cam_token = sample['data'][cam]
+            cam_path, _, cam_intrinsic = nusc.get_sample_data(cam_token)
+            cam_info = obtain_sensor2top(nusc, cam_token, l2e_t, l2e_r_mat,
+                                         e2g_t, e2g_r_mat, cam)
+            cam_info.update(cam_intrinsic=cam_intrinsic)
+            info['cams'].update({cam: cam_info})
+
+        # obtain sweeps for a single key-frame
+        sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+        sweeps = []
+        while len(sweeps) < max_sweeps:
+            if not sd_rec['prev'] == '':
+                sweep = obtain_sensor2top(nusc, sd_rec['prev'], l2e_t,
+                                          l2e_r_mat, e2g_t, e2g_r_mat, 'lidar')
+                sweeps.append(sweep)
+                sd_rec = nusc.get('sample_data', sd_rec['prev'])
+            else:
+                break
+        info['sweeps'] = sweeps
+        # obtain annotation
+        if not test:
+            annotations = [
+                nusc.get('sample_annotation', token)
+                for token in sample['anns']
+            ]
+            locs = np.array([b.center for b in boxes]).reshape(-1, 3)
+            dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
+            rots = np.array([b.orientation.yaw_pitch_roll[0]
+                             for b in boxes]).reshape(-1, 1)
+            velocity = np.array(
+                [nusc.box_velocity(token)[:2] for token in sample['anns']])
+            valid_flag = np.array(
+                [(anno['num_lidar_pts'] + anno['num_radar_pts']) > 0
+                 for anno in annotations],
+                dtype=bool).reshape(-1)
+            # convert velo from global to lidar
+            for i in range(len(boxes)):
+                velo = np.array([*velocity[i], 0.0])
+                velo = velo @ np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(
+                    l2e_r_mat).T
+                velocity[i] = velo[:2]
+
+            names = [b.name for b in boxes]
+            for i in range(len(names)):
+                if names[i] in NuScenesNameMapping:
+                    names[i] = NuScenesNameMapping[names[i]]
+            names = np.array(names)
+            # we need to convert box size to
+            # the format of our lidar coordinate system
+            # which is x_size, y_size, z_size (corresponding to l, w, h)
+            gt_boxes = np.concatenate([locs, dims[:, [1, 0, 2]], rots], axis=1)
+            assert len(gt_boxes) == len(
+                annotations), f'{len(gt_boxes)}, {len(annotations)}'
+            info['gt_boxes'] = gt_boxes
+            info['gt_names'] = names
+            info['gt_velocity'] = velocity.reshape(-1, 2)
+            info['num_lidar_pts'] = np.array(
+                [a['num_lidar_pts'] for a in annotations])
+            info['num_radar_pts'] = np.array(
+                [a['num_radar_pts'] for a in annotations])
+            info['valid_flag'] = valid_flag
+
+        if sample['scene_token'] in train_scenes:
+            train_nusc_infos.append(info)
+        else:
+            val_nusc_infos.append(info)
+
+    for sample in mmengine.track_iter_progress(nusc.sample):
+        # t = multiprocessing.Process(target=process, args=(sample,))
+        # t.start()        
+
+        lidar_token = sample['data']['LIDAR_TOP']
+        sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+        cs_record = nusc.get('calibrated_sensor',
+                             sd_rec['calibrated_sensor_token'])
+        pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
+        pts_semantic_mask_path = os.path.join(nusc.get('lidarseg', sd_rec['ego_pose_token'])['filename'])
+        pts_panoptic_mask_path = os.path.join(nusc.get('panoptic', sd_rec['ego_pose_token'])['filename'])
+        lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)  
+        mmengine.check_file_exist(lidar_path)
+
+        info = {
+            'lidar_path': lidar_path,
+            'num_features': 5,
+            'token': sample['token'],
+            'sweeps': [],
+            'cams': dict(),
+            'lidar2ego_translation': cs_record['translation'],
+            'lidar2ego_rotation': cs_record['rotation'],
+            'ego2global_translation': pose_record['translation'],
+            'ego2global_rotation': pose_record['rotation'],
+            'timestamp': sample['timestamp'],
+            'pts_semantic_mask_path': pts_semantic_mask_path,
+            'pts_panoptic_mask_path': pts_panoptic_mask_path
         }
 
         l2e_r = info['lidar2ego_rotation']

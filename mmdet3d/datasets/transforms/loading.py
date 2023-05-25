@@ -955,9 +955,10 @@ class LoadAnnotations3D(LoadAnnotations):
             pts_semantic_mask = np.fromfile(
                 pts_semantic_mask_path, dtype=np.int64)
 
+        pts_semantic_mask = pts_semantic_mask.astype(np.int64)
         if self.dataset_type == 'semantickitti':
-            pts_semantic_mask = pts_semantic_mask.astype(np.int64)
             pts_semantic_mask = pts_semantic_mask % self.seg_offset
+
         # nuScenes loads semantic and panoptic labels from different files.
 
         results['pts_semantic_mask'] = pts_semantic_mask

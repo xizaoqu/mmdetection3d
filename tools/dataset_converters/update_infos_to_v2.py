@@ -366,6 +366,10 @@ def update_nuscenes_infos(pkl_path, out_dir):
                 'cam_instances'] = generate_nuscenes_camera_instances(
                     ori_info_dict, nusc)
         temp_data_info, _ = clear_data_info_unused_keys(temp_data_info)
+        if 'pts_semantic_mask_path' in ori_info_dict:
+            temp_data_info['pts_semantic_mask_path']  = ori_info_dict['pts_semantic_mask_path'] 
+        if 'pts_panoptic_mask_path' in ori_info_dict:
+            temp_data_info['pts_panoptic_mask_path']  = ori_info_dict['pts_panoptic_mask_path'] 
         converted_list.append(temp_data_info)
     pkl_name = Path(pkl_path).name
     out_path = osp.join(out_dir, pkl_name)
