@@ -52,7 +52,7 @@ train_pipeline = [
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
-        load_dim=4,
+        load_dim=5,
         use_dim=4,
         backend_args=backend_args),
     dict(
@@ -82,7 +82,7 @@ test_pipeline = [
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
-        load_dim=4,
+        load_dim=5,
         use_dim=4,
         backend_args=backend_args),
     dict(
@@ -120,34 +120,38 @@ eval_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=1,
+    batch_size=2,
     num_workers=4,
-    persistent_workers=True,
-    drop_last=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        data_prefix=data_prefix,
-        ann_file='nuscenes_infos_train.pkl',
-        pipeline=train_pipeline,
-        metainfo=metainfo,
-        test_mode=False))
+        type='RepeatDataset',
+        times=1,
+        dataset=dict(
+            type=dataset_type,
+            data_root=data_root,
+            data_prefix=data_prefix,
+            ann_file='nuscenes_infos_train.pkl',
+            pipeline=train_pipeline,
+            metainfo=metainfo,
+            test_mode=False))
+)
 
 val_dataloader = dict(
     batch_size=1,
-    num_workers=4,
-    persistent_workers=True,
-    drop_last=False,
+    num_workers=1,
     sampler=dict(type='DefaultSampler', shuffle=False),
     dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        data_prefix=data_prefix,
-        ann_file='nuscenes_infos_val.pkl',
-        pipeline=eval_pipeline,
-        metainfo=metainfo,
-        test_mode=True))
+        type='RepeatDataset',
+        times=1,
+        dataset=dict(
+            type=dataset_type,
+            data_root=data_root,
+            data_prefix=data_prefix,
+            ann_file='nuscenes_infos_val.pkl',
+            pipeline=eval_pipeline,
+            metainfo=metainfo,
+            test_mode=True))
+)
 
 test_dataloader = val_dataloader
 
