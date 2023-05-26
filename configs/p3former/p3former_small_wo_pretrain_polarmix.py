@@ -24,7 +24,13 @@ model = dict(
     backbone=dict(
         input_channels=16,
         base_channels=16,
-        more_conv=True))
+        more_conv=True),
+    decode_head=dict(
+        thing_class=[0,1,2,3,4,5,6,7],
+        stuff_class=[8,9,10,11,12,13,14,15,16,17,18],
+        ignore_index=19
+    ))
+
 
 
 

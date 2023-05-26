@@ -979,22 +979,34 @@ class LoadAnnotations3D(LoadAnnotations):
         """
         pts_panoptic_mask_path = results['pts_panoptic_mask_path']
 
-        try:
-            mask_bytes = get(
-                pts_panoptic_mask_path, backend_args=self.backend_args)
-            # add .copy() to fix read-only bug
-            pts_panoptic_mask = np.frombuffer(
-                mask_bytes, dtype=self.seg_3d_dtype).copy()
-        except ConnectionError:
-            mmengine.check_file_exist(pts_panoptic_mask_path)
-            pts_panoptic_mask = np.fromfile(
-                pts_panoptic_mask_path, dtype=np.int64)
+        # try:
+        #     mask_bytes = get(
+        #         pts_panoptic_mask_path, backend_args=self.backend_args)
+        #     # add .copy() to fix read-only bug
+        #     pts_panoptic_mask = np.frombuffer(
+        #         mask_bytes, dtype=self.seg_3d_dtype).copy()
+        # except ConnectionError:
+        #     mmengine.check_file_exist(pts_panoptic_mask_path)
+        #     pts_panoptic_mask = np.fromfile(
+        #         pts_panoptic_mask_path, dtype=np.int64)
 
+        
         if self.dataset_type == 'semantickitti':
+            try:
+                mask_bytes = get(
+                    pts_panoptic_mask_path, backend_args=self.backend_args)
+                # add .copy() to fix read-only bug
+                pts_panoptic_mask = np.frombuffer(
+                    mask_bytes, dtype=self.seg_3d_dtype).copy()
+            except ConnectionError:
+                mmengine.check_file_exist(pts_panoptic_mask_path)
+                pts_panoptic_mask = np.fromfile(
+                    pts_panoptic_mask_path, dtype=np.int64)
             pts_semantic_mask = pts_panoptic_mask.astype(np.int64)
             pts_semantic_mask = pts_semantic_mask % self.seg_offset
         elif self.dataset_type == 'nuscenes':
-            pts_semantic_mask = pts_semantic_mask // self.seg_offset
+            pts_panoptic_mask = np.load(pts_panoptic_mask_path)['data']
+            pts_semantic_mask = pts_panoptic_mask // self.seg_offset
 
         results['pts_semantic_mask'] = pts_semantic_mask
 

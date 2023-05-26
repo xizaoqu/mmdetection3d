@@ -204,9 +204,9 @@ class P3FormerHead(nn.Module):
                  num_classes,
                  num_queries,
                  embed_dims,
-                 num_thing_classes=8,
-                 num_stuff_classes=11,
-                 thing_class=[0,1,2,3,4,5,6,7],
+                 thing_class,
+                 stuff_class,
+                 ignore_index,
                  num_decoder_layers=3,
                  pos_dim=3,
                  transformer_decoder_cfg=dict(type='Transformer_Decoder'),
@@ -222,7 +222,6 @@ class P3FormerHead(nn.Module):
                  pe_type='mpe',
                  use_pa_seg=True,
                  pa_seg_weight = 0.2,
-                 ignore_index=19,
                  score_thr=0.4,
                  iou_thr=0.8,
                  mask_score_thr=0.5,
@@ -239,8 +238,9 @@ class P3FormerHead(nn.Module):
         self.iou_thr = iou_thr
         self.use_pa_seg = use_pa_seg
         self.thing_class = thing_class
-        self.num_thing_classes = num_thing_classes
-        self.num_stuff_classes = num_stuff_classes
+        self.stuff_class = stuff_class
+        self.num_thing_classes = len(thing_class)
+        self.num_stuff_classes = len(stuff_class)
         self.num_decoder_layers = num_decoder_layers
         self.num_queries = num_queries
 
@@ -352,7 +352,7 @@ class P3FormerHead(nn.Module):
             for b in range(len(pe_features)):
                 sem_pred = torch.einsum("nc,vc->vn", sem_queries[b], pe_features[b])
                 sem_preds.append(sem_pred)
-                stuff_queries = sem_queries[b][self.num_thing_classes:-1]
+                stuff_queries = sem_queries[b][self.stuff_class]
                 queries[b] = torch.cat([queries[b], stuff_queries], dim=0)
 
         return queries, pe_features, mpe, sem_preds
@@ -694,11 +694,9 @@ class P3FormerHead(nn.Module):
             sem_weights = positive_gt_masks.new_zeros(self.num_stuff_classes,
                                                       num_points)
             sem_stuff_weights = torch.eye(
-                self.num_stuff_classes+1, device=positive_gt_masks.device) # include ignore_index
-            sem_thing_weights = positive_gt_masks.new_zeros(
-                (self.num_stuff_classes, self.num_thing_classes))
-            sem_label_weights = torch.cat(
-                [sem_thing_weights, sem_stuff_weights[:-1]], dim=-1)
+                self.num_stuff_classes, device=positive_gt_masks.device)
+            sem_label_weights = label_weights.new_zeros(self.num_stuff_classes, self.num_classes).float()
+            sem_label_weights[:, self.stuff_class] = sem_stuff_weights
 
             if len(gt_sem_classes > 0):
                 sem_inds = gt_sem_classes - self.num_thing_classes
@@ -707,7 +705,7 @@ class P3FormerHead(nn.Module):
                 sem_targets[sem_inds] = gt_sem_masks
                 sem_weights[sem_inds] = 1
 
-            label_weights[:, self.num_thing_classes:] = 0
+            label_weights[:, self.stuff_class] = 0
             label_weights[:, self.ignore_index] = 0
             labels = torch.cat([labels, sem_labels])
             label_weights = torch.cat([label_weights, sem_label_weights])
@@ -843,12 +841,11 @@ class P3FormerHead(nn.Module):
             #     0, self.num_stuff_classes) + self.num_thing_classes+1
             # stuff_labels = stuff_labels.to(thing_labels.device)
 
-            scores = class_pred[:self.num_queries][:, :self.num_thing_classes]
+            scores = class_pred[:self.num_queries][:, self.thing_class]
             thing_scores, thing_labels = scores.sigmoid().max(dim=1)
             stuff_scores = class_pred[
-                self.num_queries:][:, self.num_thing_classes:-1].diag().sigmoid()
-            stuff_labels = torch.arange(
-                0, self.num_stuff_classes) + self.num_thing_classes
+                self.num_queries:][:, self.stuff_class].diag().sigmoid()
+            stuff_labels = torch.tensor(self.stuff_class)
             stuff_labels = stuff_labels.to(thing_labels.device)
 
 
