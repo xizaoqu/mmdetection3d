@@ -114,8 +114,8 @@ def create_semantickitti_info_file(pkl_prefix, save_path):
     mmengine.dump(semantickitti_infos_test, filename)
 
     semantickitti_infos_test = get_semantickitti_info(split='trainval')
-    filename = save_path / f'{pkl_prefix}_infos_test.pkl'
-    print(f'SemanticKITTI info test file is saved to {filename}')
+    filename = save_path / f'{pkl_prefix}_infos_trainvel.pkl'
+    print(f'SemanticKITTI info trainval file is saved to {filename}')
     mmengine.dump(semantickitti_infos_test, filename)
 
     semantickitti_infos_test = get_semantickitti_info(split='mini')

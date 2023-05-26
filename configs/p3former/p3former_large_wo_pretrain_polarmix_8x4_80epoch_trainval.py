@@ -23,12 +23,16 @@ model = dict(
         return_point_feats=False),
     backbone=dict(
         input_channels=32,
-        base_channels=32,
+        base_channels=48,
         more_conv=True,
         out_channels=256),
     decode_head=dict(
-        input_channels=256,
-    ),)
+        num_decoder_layers=6,
+        num_queries=128,
+        embed_dims=256,
+        cls_channels=(256, 256, 20),
+        mask_channels=(256, 256, 256, 256, 256),
+    ))
 
 train_dataloader = dict(
     dataset=dict(
