@@ -16,6 +16,8 @@ class EvalPanoptic:
         classes (list): Classes used in the dataset.
         thing_classes (list): Thing classes used in the dataset.
         stuff_classes (list): Stuff classes used in the dataset.
+        include (list): Include classes in the dataset.
+        dataset_type (str): Type of dataset.
         min_num_points (int): Minimum number of points of an object to be
             counted as ground truth in evaluation.
         id_offset (int): Offset for instance ids to concat with
@@ -30,6 +32,8 @@ class EvalPanoptic:
                  classes: List[str],
                  thing_classes: List[str],
                  stuff_classes: List[str],
+                 include: List[int],
+                 dataset_type: str,
                  min_num_points: int,
                  id_offset: int,
                  label2cat: Dict[str, str],
@@ -38,8 +42,14 @@ class EvalPanoptic:
         self.classes = classes
         self.thing_classes = thing_classes
         self.stuff_classes = stuff_classes
+        self.include = include
+        self.dataset_type = dataset_type
         self.ignore_index = ignore_index
         self.num_classes = len(classes)
+        self.print_ignore_label=True
+        if len(include) == self.num_classes:
+            self.num_classes += 1
+            self.print_ignore_label=False
         self.label2cat = label2cat
         self.logger = logger
         self.id_offset = id_offset
@@ -206,9 +216,14 @@ class EvalPanoptic:
         pq_all = sq_all * rq_all
 
         # then do the REAL mean (no ignored classes)
-        sq = sq_all.mean()
-        rq = rq_all.mean()
-        pq = pq_all.mean()
+        sq = sq_all[self.include].mean()
+        rq = rq_all[self.include].mean()
+        pq = pq_all[self.include].mean()
+
+        if not self.print_ignore_label:
+            sq_all = sq_all[self.include]
+            rq_all = rq_all[self.include]
+            pq_all = pq_all[self.include]
 
         return (pq, sq, rq, pq_all, sq_all, rq_all)
 
@@ -223,9 +238,11 @@ class EvalPanoptic:
         union = tp + fp + fn
         union = np.maximum(union, self.eps)
         iou = intersection.astype(np.double) / union.astype(np.double)
-        iou_mean = (intersection.astype(np.double) /
-                    union.astype(np.double)).mean()
+        iou_mean = (intersection[self.include].astype(np.double) /
+                    union[self.include].astype(np.double)).mean()
 
+        if not self.print_ignore_label:
+            iou = iou[self.include]
         return iou_mean, iou
 
     def get_iou_stats(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -274,6 +291,11 @@ class EvalPanoptic:
         """
         # avoid zero (ignored label)
         instance_preds = instance_preds + 1
+
+        if self.dataset_type == 'nuscenes':
+            gt_instances = gt_instances % self.id_offset + gt_semantics * self.id_offset
+        elif self.dataset_type == 'semantickitti':
+            gt_instances = gt_instances // self.id_offset * self.id_offset + gt_semantics
         gt_instances = gt_instances + 1
 
         # first step is to count intersections > 0.5 IoU
@@ -344,6 +366,8 @@ def panoptic_seg_eval(gt_labels: List[np.ndarray],
                       classes: List[str],
                       thing_classes: List[str],
                       stuff_classes: List[str],
+                      include: List[int],
+                      dataset_type: str,
                       min_num_points: int,
                       id_offset: int,
                       label2cat: Dict[str, str],
@@ -359,6 +383,8 @@ def panoptic_seg_eval(gt_labels: List[np.ndarray],
         classes (list[str]): Classes used in the dataset.
         thing_classes (list[str]): Thing classes used in the dataset.
         stuff_classes (list[str]): Stuff classes used in the dataset.
+        include (list): Include classes in the dataset.
+        dataset_type (str): Type of dataset.
         min_num_points (int): Minimum point number of object to be
             counted as ground truth in evaluation.
         id_offset (int): Offset for instance ids to concat with
@@ -371,7 +397,7 @@ def panoptic_seg_eval(gt_labels: List[np.ndarray],
     Returns:
         dict[float]: Dict of results.
     """
-    panoptic_seg_eval = EvalPanoptic(classes, thing_classes, stuff_classes,
+    panoptic_seg_eval = EvalPanoptic(classes, thing_classes, stuff_classes, include, dataset_type,
                                      min_num_points, id_offset, label2cat,
                                      ignore_index, logger)
     ret_dict = panoptic_seg_eval.evaluate(gt_labels, seg_preds)

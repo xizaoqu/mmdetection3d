@@ -19,6 +19,8 @@ def test_panoptic_seg_eval():
         4: 'sky',
     }
 
+    include = [1,2,3,4]
+    
     thing_classes = ['person', 'dog']
     stuff_classes = ['grass', 'sky']
     ignore_index = [0]  # only ignore ignore class
@@ -92,7 +94,7 @@ def test_panoptic_seg_eval():
     }]
 
     ret_value = panoptic_seg_eval(gt_labels, seg_preds, classes, thing_classes,
-                                  stuff_classes, min_points, offset, label2cat,
+                                  stuff_classes, min_points, include, offset, label2cat,
                                   ignore_index)
 
     assert np.isclose(ret_value['pq'], 0.47916666666666663)

@@ -20,6 +20,7 @@ class PanopticSegMetric(SegMetric):
             counted as ground truth in evaluation.
         id_offset (int): Offset for instance ids to concat with
             semantic labels.
+        dataset_type (str): Type of dataset.
         collect_device (str, optional): Device name used for collecting
             results from different ranks during distributed training.
             Must be 'cpu' or 'gpu'. Defaults to 'cpu'.
@@ -40,6 +41,7 @@ class PanopticSegMetric(SegMetric):
                  stuff_class_inds: List[int],
                  min_num_points: int,
                  id_offset: int,
+                 dataset_type: str,
                  collect_device: str = 'cpu',
                  prefix: Optional[str] = None,
                  pklfile_prefix: str = None,
@@ -49,6 +51,7 @@ class PanopticSegMetric(SegMetric):
         self.stuff_class_inds = stuff_class_inds
         self.min_num_points = min_num_points
         self.id_offset = id_offset
+        self.dataset_type=dataset_type
 
         super(PanopticSegMetric, self).__init__(
             pklfile_prefix=pklfile_prefix,
@@ -81,6 +84,7 @@ class PanopticSegMetric(SegMetric):
         classes = self.dataset_meta['classes']
         thing_classes = [classes[i] for i in self.thing_class_inds]
         stuff_classes = [classes[i] for i in self.stuff_class_inds]
+        include = self.thing_class_inds + self.stuff_class_inds
 
         gt_labels = []
         seg_preds = []
@@ -89,7 +93,7 @@ class PanopticSegMetric(SegMetric):
             seg_preds.append(sinlge_pred_results)
 
         ret_dict = panoptic_seg_eval(gt_labels, seg_preds, classes,
-                                     thing_classes, stuff_classes,
+                                     thing_classes, stuff_classes, include, self.dataset_type,
                                      self.min_num_points, self.id_offset,
                                      label2cat, ignore_index, logger)
 

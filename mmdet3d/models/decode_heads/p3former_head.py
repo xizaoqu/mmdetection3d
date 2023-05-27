@@ -488,8 +488,8 @@ class P3FormerHead(nn.Module):
         label_weights_buffer = []
 
         for b in range(len(gt_classes)):
-            is_thing_class = gt_classes[b]<self.num_thing_classes
-            is_stuff_class = (gt_classes[b]>=self.num_thing_classes) & (gt_classes[b]!=self.ignore_index)
+            is_thing_class = (gt_classes[b]<=self.thing_class[-1]) & (gt_classes[b]!=self.ignore_index)
+            is_stuff_class = (gt_classes[b]>=self.stuff_class[0]) & (gt_classes[b]!=self.ignore_index)
             gt_thing_classes.append(gt_classes[b][is_thing_class])
             gt_thing_masks.append(gt_masks[b][is_thing_class])
             gt_stuff_classes.append(gt_classes[b][is_stuff_class])
@@ -699,7 +699,7 @@ class P3FormerHead(nn.Module):
             sem_label_weights[:, self.stuff_class] = sem_stuff_weights
 
             if len(gt_sem_classes > 0):
-                sem_inds = gt_sem_classes - self.num_thing_classes
+                sem_inds = gt_sem_classes - self.stuff_class[0]
                 sem_inds = sem_inds.long()
                 sem_labels[sem_inds] = gt_sem_classes.long()
                 sem_targets[sem_inds] = gt_sem_masks
@@ -787,7 +787,7 @@ class P3FormerHead(nn.Module):
             label = []
 
             for unq_pan in unique_panoptic_label:
-                unq_sem = unq_pan & 0xFFFF # TODO now only support semantickitti
+                unq_sem = unq_pan & 0xFFFF
                 if unq_sem in self.thing_class:
                     label.append(unq_sem)
                     mask.append(gt_panoptici_label == unq_pan)
@@ -843,6 +843,7 @@ class P3FormerHead(nn.Module):
 
             scores = class_pred[:self.num_queries][:, self.thing_class]
             thing_scores, thing_labels = scores.sigmoid().max(dim=1)
+            thing_labels += self.thing_class[0]
             stuff_scores = class_pred[
                 self.num_queries:][:, self.stuff_class].diag().sigmoid()
             stuff_labels = torch.tensor(self.stuff_class)
@@ -881,10 +882,15 @@ class P3FormerHead(nn.Module):
                 pred_class = int(cur_classes[k].item())
                 isthing = pred_class in self.thing_class
                 mask = cur_mask_ids == k
-                semantic_pred[mask] = pred_class
-                if isthing:
-                    instance_id[mask] = id
-                    id += 1
+                mask_area = mask.sum().item()
+                original_area = (cur_masks[k] >= 0.5).sum().item()
+                if mask_area > 0 and original_area > 0: 
+                    if mask_area / original_area < self.iou_thr:
+                        continue
+                    semantic_pred[mask] = pred_class
+                    if isthing:
+                        instance_id[mask] = id
+                        id += 1
             semantic_preds.append(semantic_pred)
             instance_ids.append(instance_id)
         return (semantic_preds, instance_ids)

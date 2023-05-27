@@ -7,6 +7,13 @@ data_prefix = dict(
 
 backend_args = None
 
+class_names = [
+    'noise', 'barrier', 'bicycle', 'bus', 'car', 'construction_vehicle',
+         'motorcycle', 'pedestrian', 'traffic_cone', 'trailer', 'truck',
+         'driveable_surface', 'other_flat', 'sidewalk', 'terrain', 'manmade',
+         'vegetation'
+]
+
 labels_map = {
 1:0,
 5:0,
@@ -43,7 +50,7 @@ labels_map = {
 }
 
 metainfo = dict(
-    classes=labels_map, seg_label_mapping=labels_map, max_label=31)
+    classes=class_names, seg_label_mapping=labels_map, max_label=31)
 
 
 # metainfo = dict(
@@ -160,7 +167,9 @@ val_evaluator = dict(type='PanopticSegMetric',
                     thing_class_inds=[1,2,3,4,5,6,7,8,9,10],
                     stuff_class_inds=[11,12,13,14,15,16],
                     min_num_points=30,
-                    id_offset = 1000)
+                    id_offset = 1000,
+                    dataset_type='nuscenes',
+                    )
 
 test_evaluator = val_evaluator
 

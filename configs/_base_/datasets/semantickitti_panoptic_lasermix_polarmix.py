@@ -262,7 +262,8 @@ val_evaluator = dict(type='PanopticSegMetric',
                     thing_class_inds=[0,1,2,3,4,5,6,7],
                     stuff_class_inds=[8,9,10,11,12,13,14,15,16,17,18],
                     min_num_points=50,
-                    id_offset = 2**16)
+                    id_offset = 2**16,
+                    dataset_type='semantickitti')
 test_evaluator = val_evaluator
 
 vis_backends = [dict(type='LocalVisBackend')]
