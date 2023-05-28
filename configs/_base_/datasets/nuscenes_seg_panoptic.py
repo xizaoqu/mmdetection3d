@@ -166,7 +166,7 @@ test_dataloader = val_dataloader
 val_evaluator = dict(type='PanopticSegMetric',
                     thing_class_inds=[1,2,3,4,5,6,7,8,9,10],
                     stuff_class_inds=[11,12,13,14,15,16],
-                    min_num_points=30,
+                    min_num_points=15,
                     id_offset = 1000,
                     dataset_type='nuscenes',
                     )
