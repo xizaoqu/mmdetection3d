@@ -1018,8 +1018,6 @@ class LoadAnnotations3D(LoadAnnotations):
         if 'eval_ann_info' in results:
             results['eval_ann_info']['pts_semantic_mask'] = pts_semantic_mask
             results['eval_ann_info']['pts_instance_mask'] = pts_instance_mask
-            if self.dataset_type == 'nuscenes':
-                results['eval_ann_info']['token'] = results['token'] # for nuscenes submission
         return results
 
     def _load_bboxes(self, results: dict) -> None:

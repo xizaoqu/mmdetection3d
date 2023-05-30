@@ -300,8 +300,9 @@ def _fill_trainval_infos(nusc,
         cs_record = nusc.get('calibrated_sensor',
                              sd_rec['calibrated_sensor_token'])
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
-        pts_semantic_mask_path = os.path.join(nusc.get('lidarseg', sd_rec['ego_pose_token'])['filename'])
-        pts_panoptic_mask_path = os.path.join(nusc.get('panoptic', sd_rec['ego_pose_token'])['filename'])
+        if not test:
+            pts_semantic_mask_path = os.path.join(nusc.get('lidarseg', sd_rec['ego_pose_token'])['filename'])
+            pts_panoptic_mask_path = os.path.join(nusc.get('panoptic', sd_rec['ego_pose_token'])['filename'])
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)  
         mmengine.check_file_exist(lidar_path)
 
@@ -316,9 +317,12 @@ def _fill_trainval_infos(nusc,
             'ego2global_translation': pose_record['translation'],
             'ego2global_rotation': pose_record['rotation'],
             'timestamp': sample['timestamp'],
-            'pts_semantic_mask_path': pts_semantic_mask_path,
-            'pts_panoptic_mask_path': pts_panoptic_mask_path
+            'lidar_token': lidar_token
         }
+
+        if not test:
+            info.update({'pts_semantic_mask_path': pts_semantic_mask_path,
+                            'pts_panoptic_mask_path': pts_panoptic_mask_path})
 
         l2e_r = info['lidar2ego_rotation']
         l2e_t = info['lidar2ego_translation']

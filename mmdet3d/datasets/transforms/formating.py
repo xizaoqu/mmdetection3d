@@ -215,6 +215,10 @@ class Pack3DDetInputs(BaseTransform):
                         gt_instances[self._remove_prefix(key)] = results[key]
                 elif key in self.SEG_KEYS:
                     gt_pts_seg[self._remove_prefix(key)] = results[key]
+                elif key in ['lidar_sweeps']:
+                    data_sample.lidar_sweeps = results[key]
+                elif key in ['lidar_token']:
+                    pass
                 else:
                     raise NotImplementedError(f'Please modified '
                                               f'`Pack3DDetInputs` '
@@ -226,6 +230,8 @@ class Pack3DDetInputs(BaseTransform):
         data_sample.gt_pts_seg = gt_pts_seg
         if 'eval_ann_info' in results:
             data_sample.eval_ann_info = results['eval_ann_info']
+            if 'lidar_token' in self.keys:
+                data_sample.eval_ann_info['token'] = results['lidar_token'] # for nuscenes submission
         else:
             data_sample.eval_ann_info = None
 

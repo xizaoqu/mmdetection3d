@@ -161,12 +161,13 @@ class PanopticSegMetric(SegMetric):
 
             for i, (eval_ann, result) in enumerate(results):
                 sample_token = eval_ann['token']
-                pred_file_dir = os.path.join(submission_prefix, 'panoptic', self.taskset, sample_token)
+                pred_file_dir = os.path.join(submission_prefix, 'panoptic', self.taskset)
                 mmengine.mkdir_or_exist(pred_file_dir)
+                pred_file_dir = os.path.join(pred_file_dir, sample_token) 
                 pred_semantic_mask = result['pts_semantic_mask']
                 pred_instance_mask = result['pts_instance_mask']
                 pred_panoptic_mask = (pred_instance_mask + pred_semantic_mask*self.id_offset).astype(np.uint16)
-                curr_file = os.path.join(pred_file_dir,  "_panoptic.npz")
+                curr_file = pred_file_dir +  "_panoptic.npz"
                 np.savez_compressed(curr_file, data=pred_panoptic_mask)
         elif self.dataset_type == "semantickitti":
             pass

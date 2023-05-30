@@ -89,7 +89,8 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
                  bgr_to_rgb: bool = False,
                  rgb_to_bgr: bool = False,
                  boxtype2tensor: bool = True,
-                 batch_augments: Optional[List[dict]] = None) -> None:
+                 batch_augments: Optional[List[dict]] = None,
+                 multi_sweep: bool=False) -> None:
         super(Det3DDataPreprocessor, self).__init__(
             mean=mean,
             std=std,
@@ -106,6 +107,11 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         self.voxel_type = voxel_type
         if voxel:
             self.voxel_layer = VoxelizationByGridShape(**voxel_layer)
+        self.multi_sweep = multi_sweep
+
+        if self.multi_sweep:
+            from mmengine.fileio import load
+            self.sweeps_infos = load('nuscenes_infos_10sweeps_train.pkl')
 
     def forward(self,
                 data: Union[dict, List[dict]],
@@ -386,6 +392,10 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         elif self.voxel_type == 'cylindrical':
             voxels, coors = [], []
             for i, (res, data_sample) in enumerate(zip(points, data_samples)):
+                if self.multi_sweep:
+                    res_mult_sweep = self.get_lidar_with_sweeps(res, self.sweeps_infos[data_sample.sample_idx]['sweeps'])
+                    # for k in range(10):
+                    #     pts = np.fromfile('data/nuscenes/sweeps/LIDAR_TOP/n008-2018-05-21-11-06-59-0400__LIDAR_TOP__1526915243047392.pcd.bin', dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
                 rho = torch.sqrt(res[:, 0]**2 + res[:, 1]**2)
                 phi = torch.atan2(res[:, 1], res[:, 0])
                 polar_res = torch.stack((rho, phi, res[:, 2]), dim=-1)
@@ -393,10 +403,16 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
                     self.voxel_layer.point_cloud_range[:3])
                 max_bound = polar_res.new_tensor(
                     self.voxel_layer.point_cloud_range[3:])
-                try:  # only support PyTorch >= 1.9.0
+                try:  # only support PyTorch >= 1.9.0  
                     polar_res_clamp = torch.clamp(polar_res, min_bound,
                                                   max_bound)
-                except TypeError:
+                    if self.multi_sweep:
+                        rho_multi_sweep = torch.sqrt(res_mult_sweep[:, 0]**2 + res_mult_sweep[:, 1]**2)
+                        phi_multi_sweep = torch.atan2(res_mult_sweep[:, 1], res_mult_sweep[:, 0])
+                        polar_res_multi_sweep = torch.stack((rho_multi_sweep, phi_multi_sweep, res_mult_sweep[:, 2]), dim=-1)
+                        polar_res_clamp_multi_sweep = torch.clamp(polar_res_multi_sweep, min_bound,
+                                                    max_bound)
+                except TypeError: # don't support multi_sweep now
                     polar_res_clamp = polar_res.clone()
                     for coor_idx in range(3):
                         polar_res_clamp[:, coor_idx][
@@ -408,6 +424,10 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
                 res_coors = torch.floor(
                     (polar_res_clamp - min_bound) / polar_res_clamp.new_tensor(
                         self.voxel_layer.voxel_size)).int()
+                if self.multi_sweep:
+                    res_coors_multi_sweep = torch.floor(
+                        (polar_res_clamp_multi_sweep - min_bound) / polar_res_clamp_multi_sweep.new_tensor(
+                            self.voxel_layer.voxel_size)).int()
                 self.get_voxel_seg(res_coors, data_sample)
                 res_coors = F.pad(res_coors, (1, 0), mode='constant', value=i)
                 res_voxels = torch.cat((polar_res, res[:, :2], res[:, 3:]),
@@ -557,3 +577,31 @@ class Det3DDataPreprocessor(DetDataPreprocessor):
         if return_inverse:
             outputs += [inverse_indices]
         return outputs
+
+    def get_sweep(self, sweep_info):
+        def remove_ego_points(points, center_radius=1.0):
+            mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
+            return points[mask]
+
+        lidar_path = sweep_info['lidar_path']
+        points_sweep = np.fromfile('data/nuscenes/' + str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
+        points_sweep = remove_ego_points(points_sweep).T
+        if sweep_info['transform_matrix'] is not None:
+            num_points = points_sweep.shape[1]
+            points_sweep[:3, :] = sweep_info['transform_matrix'].dot(
+                np.vstack((points_sweep[:3, :], np.ones(num_points))))[:3, :]
+
+        cur_times = sweep_info['time_lag'] * np.ones((1, points_sweep.shape[1]))
+        return points_sweep.T, cur_times.T
+
+    def get_lidar_with_sweeps(self, points, sweeps, max_sweeps=5):
+        sweep_points_list = [points]
+
+        for k in np.random.choice(len(sweeps), max_sweeps - 1, replace=False):
+            points_sweep, times_sweep = self.get_sweep(sweeps[k])
+            points_sweep = torch.from_numpy(points_sweep).to(points.device)
+            sweep_points_list.append(points_sweep)
+
+        points = torch.cat(sweep_points_list, axis=0)
+
+        return points

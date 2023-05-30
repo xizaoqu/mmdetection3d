@@ -95,7 +95,7 @@ test_pipeline = [
         dataset_type='nuscenes',
         backend_args=backend_args),
     dict(type='PointSegClassMapping', ),
-    dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask'])
+    dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask', 'lidar_sweeps'])
 ]
 # construct a pipeline for data and gt loading in show function
 # please keep its loading function consistent with test_pipeline (e.g. client)
@@ -116,7 +116,7 @@ eval_pipeline = [
         dataset_type='nuscenes',
         backend_args=backend_args),
     dict(type='PointSegClassMapping', ),
-    dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask'])
+    dict(type='Pack3DDetInputs', keys=['points', 'pts_semantic_mask', 'lidar_sweeps'])
 ]
 
 train_dataloader = dict(

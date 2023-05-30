@@ -369,7 +369,9 @@ def update_nuscenes_infos(pkl_path, out_dir):
         if 'pts_semantic_mask_path' in ori_info_dict:
             temp_data_info['pts_semantic_mask_path']  = ori_info_dict['pts_semantic_mask_path'] 
         if 'pts_panoptic_mask_path' in ori_info_dict:
-            temp_data_info['pts_panoptic_mask_path']  = ori_info_dict['pts_panoptic_mask_path'] 
+            temp_data_info['pts_panoptic_mask_path']  = ori_info_dict['pts_panoptic_mask_path']
+        if 'lidar_token' in ori_info_dict:
+            temp_data_info['lidar_token']  = ori_info_dict['lidar_token']         
         converted_list.append(temp_data_info)
     pkl_name = Path(pkl_path).name
     out_path = osp.join(out_dir, pkl_name)
