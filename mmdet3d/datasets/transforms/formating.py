@@ -219,6 +219,8 @@ class Pack3DDetInputs(BaseTransform):
                     data_sample.lidar_sweeps = results[key]
                 elif key in ['lidar_token']:
                     pass
+                elif key in ['lidar_path']:
+                    pass
                 else:
                     raise NotImplementedError(f'Please modified '
                                               f'`Pack3DDetInputs` '
@@ -232,6 +234,8 @@ class Pack3DDetInputs(BaseTransform):
             data_sample.eval_ann_info = results['eval_ann_info']
             if 'lidar_token' in self.keys:
                 data_sample.eval_ann_info['token'] = results['lidar_token'] # for nuscenes submission
+            if 'lidar_path' in self.keys:
+                data_sample.eval_ann_info['lidar_path'] = results['lidar_path'] # for semantickitti submission
         else:
             data_sample.eval_ann_info = None
 

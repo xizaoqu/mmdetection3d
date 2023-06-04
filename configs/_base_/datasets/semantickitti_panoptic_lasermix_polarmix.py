@@ -46,6 +46,29 @@ labels_map = {
     259: 4  # "moving-other"-vehicle to "other-vehicle"-----mapped
 }
 
+learning_map_inv = { # inverse of previous map
+  0: 10,      # "unlabeled", and others ignored
+  1: 11,     # "car"
+  2: 15,     # "bicycle"
+  3: 18,     # "motorcycle"
+  4: 20,     # "truck"
+  5: 30,     # "other-vehicle"
+  6: 31,     # "person"
+  7: 32,     # "bicyclist"
+  8: 40,     # "motorcyclist"
+  9: 44,     # "road"
+  10: 48,    # "parking"
+  11: 49,    # "sidewalk"
+  12: 50,    # "other-ground"
+  13: 51,    # "building"
+  14: 70,    # "fence"
+  15: 71,    # "vegetation"
+  16: 72,    # "trunk"
+  17: 80,    # "terrain"
+  18: 81,    # "pole"
+  19: 0    # "traffic-sign"
+}
+
 metainfo = dict(
     classes=class_names, seg_label_mapping=labels_map, max_label=259)
 
@@ -125,7 +148,7 @@ train_pipeline = [
                             dataset_type='semantickitti'),
                         dict(type='PointSegClassMapping')
                     ],
-                    prob=1)
+                    prob=0.5)
             ],
             [
                 dict(
@@ -149,10 +172,10 @@ train_pipeline = [
                             dataset_type='semantickitti'),
                         dict(type='PointSegClassMapping')
                     ],
-                    prob=1)
+                    prob=0.5)
             ],
         ],
-        prob=[0.5, 0.5]),
+        prob=[0.2, 0.8]),
     dict(
         type='RandomFlip3D',
         sync_2d=False,
@@ -263,7 +286,8 @@ val_evaluator = dict(type='PanopticSegMetric',
                     stuff_class_inds=[8,9,10,11,12,13,14,15,16,17,18],
                     min_num_points=50,
                     id_offset = 2**16,
-                    dataset_type='semantickitti')
+                    dataset_type='semantickitti',
+                    learning_map_inv=learning_map_inv)
 test_evaluator = val_evaluator
 
 vis_backends = [dict(type='LocalVisBackend')]

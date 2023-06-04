@@ -48,7 +48,8 @@ class PanopticSegMetric(SegMetric):
                  prefix: Optional[str] = None,
                  pklfile_prefix: str = None,
                  submission_prefix: str = None,
-                 taskset: str = 'None',
+                 taskset: str = None,
+                 learning_map_inv = None, 
                  **kwargs):
         self.thing_class_inds = thing_class_inds
         self.stuff_class_inds = stuff_class_inds
@@ -56,6 +57,7 @@ class PanopticSegMetric(SegMetric):
         self.id_offset = id_offset
         self.dataset_type=dataset_type
         self.taskset = taskset
+        self.learning_map_inv = learning_map_inv
 
         super(PanopticSegMetric, self).__init__(
             pklfile_prefix=pklfile_prefix,
@@ -161,13 +163,34 @@ class PanopticSegMetric(SegMetric):
 
             for i, (eval_ann, result) in enumerate(results):
                 sample_token = eval_ann['token']
-                pred_file_dir = os.path.join(submission_prefix, 'panoptic', self.taskset)
-                mmengine.mkdir_or_exist(pred_file_dir)
-                pred_file_dir = os.path.join(pred_file_dir, sample_token) 
+                results_dir = os.path.join(submission_prefix, 'panoptic', self.taskset)
+                mmengine.mkdir_or_exist(results_dir)
+                results_dir = os.path.join(results_dir, sample_token) 
                 pred_semantic_mask = result['pts_semantic_mask']
                 pred_instance_mask = result['pts_instance_mask']
                 pred_panoptic_mask = (pred_instance_mask + pred_semantic_mask*self.id_offset).astype(np.uint16)
-                curr_file = pred_file_dir +  "_panoptic.npz"
+                curr_file = results_dir +  "_panoptic.npz"
                 np.savez_compressed(curr_file, data=pred_panoptic_mask)
         elif self.dataset_type == "semantickitti":
-            pass
+            results_dir = os.path.join(submission_prefix, 'sequences')
+            mmengine.mkdir_or_exist(results_dir)
+            for i in range(0,22):
+                sub_dir = os.path.join(results_dir, str(i).zfill(2), 'predictions')
+                mmengine.mkdir_or_exist(sub_dir)
+
+            learning_map_inv_array = np.zeros(len(self.learning_map_inv))
+            for i, v in enumerate(self.learning_map_inv.values()):
+                learning_map_inv_array[i] = v
+            for i, (eval_ann, result) in enumerate(results):
+                semantic_preds = result['pts_semantic_mask']
+                instance_preds = result['pts_instance_mask']
+                semantic_preds_inv = learning_map_inv_array[semantic_preds]
+                panoptic_preds = semantic_preds_inv.reshape(-1, 1) + (instance_preds * self.id_offset).reshape(-1, 1)
+
+                lidar_path = eval_ann['lidar_path']
+                seq = lidar_path.split('/')[-3]
+                pts_fname = lidar_path.split('/')[-1].split('.')[-2]+'.label'
+                fname = os.path.join(results_dir, seq, 'predictions', pts_fname)
+                panoptic_preds.reshape(-1).astype(np.uint32).tofile(fname)
+        else:
+            raise NotImplementedError()
